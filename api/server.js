@@ -378,7 +378,84 @@ app.get('/api/norway', async (req, res) => {
   }
 });
 
-// ─── Switzerland (SNB) endpoint ───────────────────────────────────────────────
+// ─── Germany (Bundesbank) endpoint ───────────────────────────────────────────
+// Uses Bundesbank SDMX API (BBSIS flow) — same BSI key structure as ECB.
+// Germany joined the eurozone in 1999. Post-1999 data = German contribution
+// to euro area aggregates (EUR). Pre-1999 not available in BBSIS.
+// Units: EUR millions. No auth needed.
+
+app.get('/api/germany-debug', async (req, res) => {
+  // Test one series key to verify the format works
+  const url = 'https://api.statistiken.bundesbank.de/rest/data/BBSIS/M.DE.Y.V.M30.X.1.U2.2300.Z01.E' +
+    '?format=csvdata&lang=en&startPeriod=2025-01';
+  try {
+    const r = await fetch(url);
+    const text = await r.text();
+    res.json({ status: r.status, url, preview: text.slice(0, 500) });
+  } catch (e) {
+    res.json({ error: e.message, url });
+  }
+});
+
+app.get('/api/germany', async (req, res) => {
+  try {
+    const BASE = 'https://api.statistiken.bundesbank.de/rest/data/BBSIS';
+    // BSI key: M.{country}.Y.V.{aggregate}.X.1.U2.2300.Z01.E
+    // M10=M1, M20=M2, M30=M3 — seasonally adjusted (Y series)
+    const seriesMap = {
+      m1: 'M.DE.Y.V.M10.X.1.U2.2300.Z01.E',
+      m2: 'M.DE.Y.V.M20.X.1.U2.2300.Z01.E',
+      m3: 'M.DE.Y.V.M30.X.1.U2.2300.Z01.E',
+    };
+
+    async function fetchSeries(key) {
+      const url = `${BASE}/${key}?format=csvdata&lang=en`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`Bundesbank HTTP ${r.status} for ${key}: ${await r.text().then(t => t.slice(0, 200))}`);
+      const text = await r.text();
+      // csvdata format: header row then data rows
+      // Typical: KEY,FREQ,... ,TIME_PERIOD,OBS_VALUE
+      const lines = text.trim().split('\n');
+      const header = lines[0].split(',');
+      const timePeriodIdx = header.findIndex(h => h.trim().replace(/"/g, '') === 'TIME_PERIOD');
+      const obsValueIdx = header.findIndex(h => h.trim().replace(/"/g, '') === 'OBS_VALUE');
+      if (timePeriodIdx === -1 || obsValueIdx === -1) {
+        throw new Error(`Unexpected CSV headers: ${lines[0].slice(0, 200)}`);
+      }
+      const series = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.replace(/"/g, '').trim());
+        const period = cols[timePeriodIdx];
+        const value = parseFloat(cols[obsValueIdx]);
+        if (period && !isNaN(value)) {
+          series.push({ period, value });
+        }
+      }
+      return series.sort((a, b) => a.period.localeCompare(b.period));
+    }
+
+    const [m1, m2, m3] = await Promise.all([
+      fetchSeries(seriesMap.m1),
+      fetchSeries(seriesMap.m2),
+      fetchSeries(seriesMap.m3),
+    ]);
+
+    if (!m3.length) throw new Error('No data returned from Bundesbank');
+
+    res.json({
+      success: true,
+      data: { m1, m2, m3 },
+      periods: m3.length,
+      firstPeriod: m3[0]?.period,
+      lastPeriod: m3[m3.length - 1]?.period,
+    });
+  } catch (e) {
+    console.error('Germany error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+
 // SNB data portal: data.snb.ch/api/cube/snbmonagg
 // Dimensions confirmed: D0(B)=Level, D1(GM1/GM2/GM3)=M1/M2/M3
 // CSV format, semicolon-separated, data starts at row 4 (0-indexed)
