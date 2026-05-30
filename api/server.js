@@ -385,21 +385,19 @@ app.get('/api/norway', async (req, res) => {
 // Units: EUR millions. No auth needed.
 
 app.get('/api/germany-debug', async (req, res) => {
-  // Use wildcards to discover current BBK01 money supply series keys
-  // The Bundesbank supports * as wildcard in BBK01
-  // Try searching for series containing "M3" or "Geldmenge" patterns
+  // Use ECB API with DE country code - same API as our working ECB endpoint
+  // Germany's contribution to euro area aggregates, from 1999-01 (euro changeover)
   const attempts = [
-    // Wildcard search for anything containing M3 in BBK01
-    'https://api.statistiken.bundesbank.de/rest/data/BBK01/*M3*?format=sdmx_csv&lang=en&startPeriod=2025-01&lastNObservations=2',
-    // Try the new alphanumeric format — OXA pattern seen in other BBK01 keys
-    'https://api.statistiken.bundesbank.de/rest/data/BBK01/OXA8B2?format=sdmx_csv&lang=en&startPeriod=2025-01',
+    'https://data-api.ecb.europa.eu/service/data/BSI/M.DE.Y.V.M10.X.1.U2.2300.Z01.E?format=csvdata&startPeriod=2025-01',
+    'https://data-api.ecb.europa.eu/service/data/BSI/M.DE.Y.V.M20.X.1.U2.2300.Z01.E?format=csvdata&startPeriod=2025-01',
+    'https://data-api.ecb.europa.eu/service/data/BSI/M.DE.Y.V.M30.X.1.U2.2300.Z01.E?format=csvdata&startPeriod=2025-01',
   ];
   const results = [];
   for (const url of attempts) {
     try {
       const r = await fetch(url);
       const text = await r.text();
-      results.push({ status: r.status, url: url.split('?')[0], preview: text.slice(0, 500) });
+      results.push({ status: r.status, url: url.split('?')[0], preview: text.slice(0, 300) });
     } catch (e) {
       results.push({ error: e.message, url });
     }
@@ -409,9 +407,9 @@ app.get('/api/germany-debug', async (req, res) => {
 
 app.get('/api/germany', async (req, res) => {
   try {
-    const BASE = 'https://api.statistiken.bundesbank.de/rest/data/BBSIS';
-    // BSI key: M.{country}.Y.V.{aggregate}.X.1.U2.2300.Z01.E
-    // M10=M1, M20=M2, M30=M3 — seasonally adjusted (Y series)
+    // ECB BSI API with DE country code — same as our working ECB endpoint
+    // but filtered to Germany's contribution to euro area aggregates
+    const BASE = 'https://data-api.ecb.europa.eu/service/data/BSI';
     const seriesMap = {
       m1: 'M.DE.Y.V.M10.X.1.U2.2300.Z01.E',
       m2: 'M.DE.Y.V.M20.X.1.U2.2300.Z01.E',
@@ -419,12 +417,10 @@ app.get('/api/germany', async (req, res) => {
     };
 
     async function fetchSeries(key) {
-      const url = `${BASE}/${key}?format=sdmx_csv&lang=en`;
+      const url = `${BASE}/${key}?format=csvdata`;
       const r = await fetch(url);
-      if (!r.ok) throw new Error(`Bundesbank HTTP ${r.status} for ${key}: ${await r.text().then(t => t.slice(0, 200))}`);
+      if (!r.ok) throw new Error(`ECB/DE HTTP ${r.status} for ${key}`);
       const text = await r.text();
-      // csvdata format: header row then data rows
-      // Typical: KEY,FREQ,... ,TIME_PERIOD,OBS_VALUE
       const lines = text.trim().split('\n');
       const header = lines[0].split(',');
       const timePeriodIdx = header.findIndex(h => h.trim().replace(/"/g, '') === 'TIME_PERIOD');
@@ -437,9 +433,7 @@ app.get('/api/germany', async (req, res) => {
         const cols = lines[i].split(',').map(c => c.replace(/"/g, '').trim());
         const period = cols[timePeriodIdx];
         const value = parseFloat(cols[obsValueIdx]);
-        if (period && !isNaN(value)) {
-          series.push({ period, value });
-        }
+        if (period && !isNaN(value)) series.push({ period, value });
       }
       return series.sort((a, b) => a.period.localeCompare(b.period));
     }
@@ -450,7 +444,7 @@ app.get('/api/germany', async (req, res) => {
       fetchSeries(seriesMap.m3),
     ]);
 
-    if (!m3.length) throw new Error('No data returned from Bundesbank');
+    if (!m3.length) throw new Error('No data returned from ECB for Germany');
 
     res.json({
       success: true,
