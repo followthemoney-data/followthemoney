@@ -48,7 +48,7 @@ app.get('/api/riksbank', async (req, res) => {
 
       const body = {
         query: [
-          { code: 'Tillgangsslag', selection: { filter: 'item', values: ['M1', 'M2', 'M3'] } },
+          { code: 'Tillg\u00e5ngsslag', selection: { filter: 'item', values: ['M1', 'M2', 'M3'] } },
           { code: 'ContentsCode', selection: { filter: 'item', values: ['FM0201AA'] } },
           { code: 'Tid', selection: { filter: 'top', values: ['13'] } }
         ],
@@ -107,4 +107,4 @@ app.get('/api/riksbank', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.env('Server running on port ' + PORT));
+app.listen(PORT, () => console.log('Server running on port ' + PORT));
