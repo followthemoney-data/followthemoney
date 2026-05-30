@@ -43,28 +43,40 @@ app.get('/api/ecb', async (req, res) => {
 
 app.get('/api/riksbank', async (req, res) => {
   try {
-    const url = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data?lang=en&outputFormat=json-stat2';
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('SCB ' + r.status);
-    const data = await r.json();
+    const data = await fetchWithCache('riksbank_live', async () => {
+      const url = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data?lang=en&outputFormat=json-stat2&valueCode[Tid]=top(13)&valueCode[ContentsCode]=000007WQ';
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('SCB ' + r.status + ' ' + await r.text().then(t => t.slice(0,100)));
+      return r.json();
+    });
 
+    const values = data.value;
     const aggregates = Object.keys(data.dimension.Penningm.category.index);
     const periods = Object.keys(data.dimension.Tid.category.index);
-    const contents = Object.keys(data.dimension.ContentsCode.category.index);
-    const size = data.size;
+    const nAgg = aggregates.length;
+    const nPeriods = periods.length;
 
+    const m1 = [], m2 = [], m3 = [];
+
+    for (let a = 0; a < nAgg; a++) {
+      for (let p = 0; p < nPeriods; p++) {
+        const idx = a * nPeriods + p;
+        const period = periods[p].replace('M', '-');
+        const value = values[idx];
+        if (value === null || value === undefined) continue;
+        const agg = aggregates[a];
+        const entry = { period, value };
+        if (agg === '5LLM1.1E.NEP.V.A') m1.push(entry);
+        else if (agg === '5LLM2.1E.NEP.V.A') m2.push(entry);
+        else if (agg === '5LLM3a.1E.NEP.V.A') m3.push(entry);
+      }
+    }
+
+    const sort = arr => arr.sort((a, b) => a.period.localeCompare(b.period));
     res.json({
       success: true,
-      debug: {
-        aggregates,
-        periods_first3: periods.slice(0, 3),
-        periods_last3: periods.slice(-3),
-        contents,
-        size,
-        total_values: data.value.length,
-        first_10_values: data.value.slice(0, 10),
-        role: data.role
-      }
+      data: { m1: sort(m1), m2: sort(m2), m3: sort(m3) },
+      source: 'live'
     });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
