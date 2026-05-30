@@ -43,23 +43,14 @@ app.get('/api/ecb', async (req, res) => {
 
 app.get('/api/riksbank', async (req, res) => {
   try {
-    const data = await fetchWithCache('riksbank_v1', async () => {
+    const data = await fetchWithCache('riksbank_v1_post', async () => {
       const url = 'https://api.scb.se/OV0104/v1/doris/en/ssd/FM/FM0201/FM0201A/MoneySupplyM3';
-
-      const metaR = await fetch(url);
-      if (!metaR.ok) throw new Error('meta ' + metaR.status);
-      const meta = await metaR.json();
-
-      const tidVar = meta.variables.find(v => v.code === 'Tid');
-      const latestPeriods = tidVar.values.slice(-13);
-      const assetVar = meta.variables.find(v => v.values && (v.values.includes('M1') || v.values.includes('m1')));
-      const contentsVar = meta.variables.find(v => v.code === 'ContentsCode' || v.code === 'Innehall');
 
       const body = {
         query: [
-          { code: assetVar.code, selection: { filter: 'item', values: ['M1', 'M2', 'M3'] } },
-          { code: contentsVar.code, selection: { filter: 'item', values: [contentsVar.values[0]] } },
-          { code: 'Tid', selection: { filter: 'item', values: latestPeriods } }
+          { code: 'Tillgangsslag', selection: { filter: 'item', values: ['M1', 'M2', 'M3'] } },
+          { code: 'ContentsCode', selection: { filter: 'item', values: ['FM0201AA'] } },
+          { code: 'Tid', selection: { filter: 'top', values: ['13'] } }
         ],
         response: { format: 'json' }
       };
@@ -116,4 +107,4 @@ app.get('/api/riksbank', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log('Server running on port ' + PORT));
+app.listen(PORT, () => console.env('Server running on port ' + PORT));
