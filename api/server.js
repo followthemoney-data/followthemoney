@@ -51,7 +51,6 @@ app.get('/api/riksbank', async (req, res) => {
     });
 
     const m1 = [], m2 = [], m3 = [];
-    const cols = data.columns || data.dimension || [];
 
     data.data.forEach(row => {
       const period = row.key[row.key.length - 1].replace('M', '-');
@@ -92,7 +91,7 @@ app.get('/api/riksbank', async (req, res) => {
         { period: '2025-01', value: 5212220 }, { period: '2025-02', value: 5161127 }
       ]
     };
-    res.json({ success: true, data: fallback, source: 'fallback', note: 'Latest verified figures from Riksbank/SCB.' });
+    res.json({ success: true, data: fallback, source: 'fallback', error: e.message });
   }
 });
 
