@@ -311,19 +311,19 @@ app.get('/api/norway', async (req, res) => {
     const contentsCodes = getOrderedCodes('ContentsCode');
     const tidCodes = getOrderedCodes('Tid');
 
-    // Find the stock (volume) codes for M1, M2, M3
-    // Codes confirmed from SSB: M1 stocks, M2 stocks, M3 stocks
-    const contentsLabels = data.dimension['ContentsCode'].category.label;
-    const m1Idx = contentsCodes.findIndex(c => contentsLabels[c]?.includes('M1') && contentsLabels[c]?.includes('Stocks'));
-    const m2Idx = contentsCodes.findIndex(c => contentsLabels[c]?.includes('M2') && contentsLabels[c]?.includes('Stocks'));
-    const m3Idx = contentsCodes.findIndex(c => contentsLabels[c]?.includes('M3') && contentsLabels[c]?.includes('Stocks'));
+    // Confirmed codes from /api/norway-debug:
+    // PengmengdBehM1 = M1 stocks (NOK million)
+    // PengmengdBehM2 = M2 stocks (NOK million)
+    // PengmengdBehM3 = M3 stocks (NOK million)
+    const m1Idx = contentsCodes.indexOf('PengmengdBehM1');
+    const m2Idx = contentsCodes.indexOf('PengmengdBehM2');
+    const m3Idx = contentsCodes.indexOf('PengmengdBehM3');
 
     if (m1Idx === -1 || m2Idx === -1 || m3Idx === -1) {
-      // Return available codes to help debug
       return res.json({
         success: false,
         message: 'Could not find M1/M2/M3 stock codes',
-        availableCodes: contentsCodes.map(c => ({ code: c, label: contentsLabels[c] }))
+        availableCodes: contentsCodes
       });
     }
 
