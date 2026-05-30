@@ -116,7 +116,7 @@ app.get('/api/riksbank', async (req, res) => {
       `?lang=en&outputFormat=json-stat2` +
       `&valueCodes[Penningm]=${encodeURIComponent(M1)},${encodeURIComponent(M2)},${encodeURIComponent(M3)}` +
       `&valueCodes[ContentsCode]=${VOL}` +
-      `&valueCodes[Tid]=top(1)`;
+      `&valueCodes[Tid]=top(3)`;
 
     const r = await fetch(scbUrl);
     if (!r.ok) throw new Error('SCB v2 ' + r.status);
