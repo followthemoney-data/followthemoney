@@ -101,8 +101,8 @@ function parseScbJsonStat2(data) {
 }
 
 // ─── Riksbank live endpoint ───────────────────────────────────────────────────
-// On every visit: fetches the latest period from SCB v2, saves it to Redis,
-// then returns the full history from Redis.
+// Fast path: reads a single Redis key 'riksbank:snapshot' (one JSON blob).
+// SCB v2 is only called once per day (riksbank:scb_checked key with 24h TTL).
 
 app.get('/api/riksbank', async (req, res) => {
   try {
@@ -111,44 +111,56 @@ app.get('/api/riksbank', async (req, res) => {
     const M3 = '5LLM3a.1E.NEP.V.A';
     const VOL = '000007WQ';
 
-    // SCB v2 only returns the latest period — that's fine for live updates
-    const scbUrl = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data' +
-      `?lang=en&outputFormat=json-stat2` +
-      `&valueCodes[Penningm]=${encodeURIComponent(M1)},${encodeURIComponent(M2)},${encodeURIComponent(M3)}` +
-      `&valueCodes[ContentsCode]=${VOL}` +
-      `&valueCodes[Tid]=top(3)`;
+    // 1. Load snapshot from Redis (single key, fast)
+    const raw = await redis.get('riksbank:snapshot');
+    let snapshot = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {};
 
-    const r = await fetch(scbUrl);
-    if (!r.ok) throw new Error('SCB v2 ' + r.status);
-    const data = await r.json();
-    const rows = parseScbJsonStat2(data);
-    const latest = rows.length > 0 ? rows[rows.length - 1] : null;
+    // 2. Only call SCB v2 if cache has expired (once per day)
+    const scbCached = await redis.get('riksbank:scb_checked');
+    if (!scbCached) {
+      const scbUrl = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data' +
+        `?lang=en&outputFormat=json-stat2` +
+        `&valueCodes[Penningm]=${encodeURIComponent(M1)},${encodeURIComponent(M2)},${encodeURIComponent(M3)}` +
+        `&valueCodes[ContentsCode]=${VOL}` +
+        `&valueCodes[Tid]=top(3)`;
 
-    // Save latest to Redis (adds new month automatically when SCB publishes it)
-    if (latest) {
-      await redis.hset(`riksbank:${latest.period}`, {
-        m1: latest.m1, m2: latest.m2, m3: latest.m3,
-      });
+      const r = await fetch(scbUrl);
+      if (!r.ok) throw new Error('SCB v2 ' + r.status);
+      const data = await r.json();
+      const rows = parseScbJsonStat2(data);
+
+      // Merge new periods into snapshot
+      let updated = false;
+      for (const row of rows) {
+        if (!snapshot[row.period] || snapshot[row.period].m3 !== row.m3) {
+          snapshot[row.period] = { m1: row.m1, m2: row.m2, m3: row.m3 };
+          updated = true;
+        }
+      }
+
+      if (updated) {
+        await redis.set('riksbank:snapshot', JSON.stringify(snapshot));
+      }
+
+      // Mark as checked — won't call SCB again for 24 hours
+      await redis.set('riksbank:scb_checked', '1', { ex: 86400 });
     }
 
-    // Return full history from Redis
-    const storedKeys = await redis.keys('riksbank:*');
-    storedKeys.sort();
+    // 3. Build response from snapshot
+    const periods = Object.keys(snapshot).sort();
     const history = { m1: [], m2: [], m3: [] };
-    for (const key of storedKeys) {
-      const entry = await redis.hgetall(key);
-      const period = key.replace('riksbank:', '');
-      if (entry && entry.m1) history.m1.push({ period, value: parseFloat(entry.m1) });
-      if (entry && entry.m2) history.m2.push({ period, value: parseFloat(entry.m2) });
-      if (entry && entry.m3) history.m3.push({ period, value: parseFloat(entry.m3) });
+    for (const period of periods) {
+      const e = snapshot[period];
+      history.m1.push({ period, value: parseFloat(e.m1) });
+      history.m2.push({ period, value: parseFloat(e.m2) });
+      history.m3.push({ period, value: parseFloat(e.m3) });
     }
 
-    const sort = arr => arr.sort((a, b) => a.period.localeCompare(b.period));
     res.json({
       success: true,
-      data: { m1: sort(history.m1), m2: sort(history.m2), m3: sort(history.m3) },
-      source: 'live',
-      periods_stored: storedKeys.length,
+      data: history,
+      source: scbCached ? 'cache' : 'live',
+      periods_stored: periods.length,
     });
   } catch (e) {
     console.error('Riksbank error:', e);
@@ -190,16 +202,16 @@ app.get('/api/seed', async (req, res) => {
       return res.json({ success: false, message: `Only ${rows.length} period(s) returned.`, rows });
     }
 
-    // Step 3: Write all rows to Redis
+    // Step 3: Write all rows as a single snapshot to Redis
+    const snapshot = {};
     for (const row of rows) {
-      await redis.hset(`riksbank:${row.period}`, {
-        m1: row.m1, m2: row.m2, m3: row.m3,
-      });
+      snapshot[row.period] = { m1: row.m1, m2: row.m2, m3: row.m3 };
     }
+    await redis.set('riksbank:snapshot', JSON.stringify(snapshot));
 
     res.json({
       success: true,
-      message: `Seed complete. Wrote ${rows.length} periods to Redis.`,
+      message: `Seed complete. Wrote ${rows.length} periods as single snapshot to Redis.`,
       seeded: rows.length,
       firstPeriod: rows[0].period,
       lastPeriod: rows[rows.length - 1].period,
@@ -215,9 +227,8 @@ app.get('/api/seed', async (req, res) => {
 
 app.get('/api/wipe', async (req, res) => {
   try {
-    const keys = await redis.keys('riksbank:*');
-    for (const key of keys) { await redis.del(key); }
-    res.json({ success: true, wiped: keys.length });
+    await redis.del('riksbank:snapshot');
+    res.json({ success: true, message: 'Snapshot wiped.' });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -227,8 +238,9 @@ app.get('/api/wipe', async (req, res) => {
 
 app.get('/api/status', async (req, res) => {
   try {
-    const keys = await redis.keys('riksbank:*');
-    keys.sort();
+    const raw = await redis.get('riksbank:snapshot');
+    const snapshot = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : {};
+    const keys = Object.keys(snapshot).sort();
     res.json({
       redisKeys: keys.length,
       firstPeriod: keys[0] ? keys[0].replace('riksbank:', '') : null,
