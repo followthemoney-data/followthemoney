@@ -44,56 +44,28 @@ app.get('/api/ecb', async (req, res) => {
 app.get('/api/riksbank', async (req, res) => {
   try {
     const data = await fetchWithCache('riksbank', async () => {
-      const url = 'https://api.scb.se/OV0104/v1/doris/en/ssd/FM/FM0201/FM0201A/MoneySupplyM3';
+      const measures = { m1: 'SEMQM1', m2: 'SEMQM2', m3: 'SEMQM3' };
+      const results = { m1: [], m2: [], m3: [] };
 
-      const metaR = await fetch(url);
-      if (!metaR.ok) throw new Error('SCB meta ' + metaR.status);
-      const meta = await metaR.json();
-
-      const tidVar = meta.variables.find(v => v.code === 'Tid');
-      const latestPeriods = tidVar.values.slice(-13);
-
-      const assetVar = meta.variables.find(v => v.code === 'Tillgångsslag' || v.code === 'tillgangsslag' || v.text === 'Type of asset');
-      const assetCode = assetVar ? assetVar.code : meta.variables[0].code;
-      const assetValues = assetVar ? assetVar.values.filter(v => ['M1','M2','M3'].includes(v)) : ['M1','M2','M3'];
-
-      const contentsVar = meta.variables.find(v => v.code === 'ContentsCode' || v.code === 'Innehall');
-      const contentsCode = contentsVar ? contentsVar.code : meta.variables[1].code;
-      const contentsValue = contentsVar ? contentsVar.values[0] : meta.variables[1].values[0];
-
-      const body = {
-        query: [
-          { code: assetCode, selection: { filter: 'item', values: assetValues } },
-          { code: contentsCode, selection: { filter: 'item', values: [contentsValue] } },
-          { code: 'Tid', selection: { filter: 'item', values: latestPeriods } }
-        ],
-        response: { format: 'json' }
-      };
-
-      const r = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
-      if (!r.ok) {
-        const text = await r.text();
-        throw new Error('SCB POST ' + r.status + ': ' + text.slice(0, 300));
+      for (const [key, seriesId] of Object.entries(measures)) {
+        const url = `https://api.riksbank.se/swea/v1/Observations/${seriesId}/2024-01-01`;
+        const r = await fetch(url, {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (!r.ok) throw new Error(`Riksbank API ${seriesId}: ${r.status}`);
+        const json = await r.json();
+        results[key] = json
+          .map(obs => ({
+            period: obs.date ? obs.date.slice(0, 7) : obs.period,
+            value: parseFloat(obs.value) * 1000
+          }))
+          .filter(e => e.value && !isNaN(e.value))
+          .slice(-13);
       }
-      return r.json();
+      return results;
     });
 
-    const m1 = [], m2 = [], m3 = [];
-    data.data.forEach(row => {
-      const entry = { period: row.key[row.key.length - 1], value: parseFloat(row.values[0]) };
-      const asset = row.key[0];
-      if (asset === 'M1') m1.push(entry);
-      else if (asset === 'M2') m2.push(entry);
-      else if (asset === 'M3') m3.push(entry);
-    });
-
-    const sort = arr => arr.sort((a, b) => a.period.localeCompare(b.period));
-    res.json({ success: true, data: { m1: sort(m1), m2: sort(m2), m3: sort(m3) } });
+    res.json({ success: true, data });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
