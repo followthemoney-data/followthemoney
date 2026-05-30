@@ -24,7 +24,15 @@
     .pos { color: #1D9E75; }
     .neg { color: #D85A30; }
     .chart-container { background: white; border-radius: 12px; padding: 1.5rem; border: 1px solid #eee; margin-bottom: 1.5rem; }
-    .chart-title { font-size: 14px; color: #999; margin-bottom: 1rem; }
+    .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px; }
+    .chart-title { font-size: 14px; color: #999; }
+    .time-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tf { padding: 4px 12px; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 12px; color: #666; white-space: nowrap; }
+    .tf.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
+    .year-filters { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 1rem; }
+    .yf { padding: 3px 10px; border-radius: 6px; border: 1px solid #e0e0e0; background: white; cursor: pointer; font-size: 11px; color: #888; }
+    .yf.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
+    .yf:hover { border-color: #aaa; color: #444; }
     .chart-wrap { position: relative; height: 250px; }
     .source { font-size: 12px; color: #bbb; text-align: right; margin-top: 0.5rem; }
     .updated { font-size: 12px; color: #bbb; margin-bottom: 1.5rem; }
@@ -57,20 +65,38 @@
 
   <div id="updated" class="updated">Loading latest data...</div>
 
+  <!-- ECB view -->
   <div id="ecb-view">
     <div id="ecb-cards" class="cards"><div class="loading">Fetching ECB data...</div></div>
     <div class="chart-container">
-      <div class="chart-title">M3 — 12 month trend</div>
-      <div class="chart-wrap"><canvas id="ecb-chart" role="img" aria-label="ECB M3 money supply over 12 months">Loading...</canvas></div>
+      <div class="chart-header">
+        <div class="chart-title" id="ecb-chart-title">M3 — Money supply trend (EUR)</div>
+        <div class="time-filters">
+          <button class="tf active" id="ecb-tf-12" onclick="setEcbFilter('range', 12, this)">12M</button>
+          <button class="tf" id="ecb-tf-60" onclick="setEcbFilter('range', 60, this)">5Y</button>
+          <button class="tf" id="ecb-tf-all" onclick="setEcbFilter('all', null, this)">All</button>
+        </div>
+      </div>
+      <div class="year-filters" id="ecb-years"></div>
+      <div class="chart-wrap"><canvas id="ecb-chart" role="img" aria-label="ECB M3 money supply trend"></canvas></div>
     </div>
     <div class="source">Source: ECB Data Portal — data-api.ecb.europa.eu</div>
   </div>
 
+  <!-- Riksbank / Sweden view -->
   <div id="riksbank-view" style="display:none">
     <div id="riksbank-cards" class="cards"><div class="loading">Fetching Riksbank data...</div></div>
     <div class="chart-container">
-      <div class="chart-title">M3 — 12 month trend (SEK billions)</div>
-      <div class="chart-wrap"><canvas id="riksbank-chart" role="img" aria-label="Riksbank M3 money supply over 12 months">Loading...</canvas></div>
+      <div class="chart-header">
+        <div class="chart-title" id="riksbank-chart-title">M3 — Money supply trend (SEK)</div>
+        <div class="time-filters">
+          <button class="tf active" id="riks-tf-12" onclick="setRiksFilter('range', 12, this)">12M</button>
+          <button class="tf" id="riks-tf-60" onclick="setRiksFilter('range', 60, this)">5Y</button>
+          <button class="tf" id="riks-tf-all" onclick="setRiksFilter('all', null, this)">All</button>
+        </div>
+      </div>
+      <div class="year-filters" id="riksbank-years"></div>
+      <div class="chart-wrap"><canvas id="riksbank-chart" role="img" aria-label="Riksbank M3 money supply trend"></canvas></div>
     </div>
     <div class="source">Source: Sveriges Riksbank via Statistics Sweden (SCB)</div>
   </div>
@@ -84,7 +110,16 @@
 <script>
   let ecbChart = null;
   let riksChart = null;
+  let ecbFullData = null;
+  let riksFullData = null;
+
+  // Current filter state: { mode: 'range'|'year'|'all', value: number|string|null }
+  let ecbFilter = { mode: 'range', value: 12 };
+  let riksFilter = { mode: 'range', value: 12 };
+
   const API_BASE = window.location.origin;
+
+  // ── Tab switching ──────────────────────────────────────────────────────────
 
   function switchBank(bank, btn) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -92,6 +127,86 @@
     document.getElementById('ecb-view').style.display = bank === 'ecb' ? '' : 'none';
     document.getElementById('riksbank-view').style.display = bank === 'riksbank' ? '' : 'none';
   }
+
+  // ── Filter setters ─────────────────────────────────────────────────────────
+
+  function setEcbFilter(mode, value, btn) {
+    ecbFilter = { mode, value };
+    // Deactivate all top-level filter buttons and year buttons
+    document.querySelectorAll('#ecb-view .tf').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#ecb-years .yf').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if (ecbFullData) redrawEcb();
+  }
+
+  function setRiksFilter(mode, value, btn) {
+    riksFilter = { mode, value };
+    document.querySelectorAll('#riksbank-view .tf').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#riksbank-years .yf').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if (riksFullData) redrawRiks();
+  }
+
+  function setEcbYear(year, btn) {
+    ecbFilter = { mode: 'year', value: year };
+    document.querySelectorAll('#ecb-view .tf').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#ecb-years .yf').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if (ecbFullData) redrawEcb();
+  }
+
+  function setRiksYear(year, btn) {
+    riksFilter = { mode: 'year', value: year };
+    document.querySelectorAll('#riksbank-view .tf').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#riksbank-years .yf').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if (riksFullData) redrawRiks();
+  }
+
+  // ── Series slicing ─────────────────────────────────────────────────────────
+
+  function applyFilter(series, filter) {
+    if (!series || series.length === 0) return [];
+    if (filter.mode === 'all') return series;
+    if (filter.mode === 'range') return series.slice(-filter.value);
+    if (filter.mode === 'year') return series.filter(d => d.period.startsWith(filter.value));
+    return series;
+  }
+
+  function filterLabel(filter) {
+    if (filter.mode === 'all') return 'All time';
+    if (filter.mode === 'range') return filter.value === 12 ? '12 months' : '5 years';
+    if (filter.mode === 'year') return filter.value;
+    return '';
+  }
+
+  // ── Build year buttons ─────────────────────────────────────────────────────
+
+  function buildYearButtons(series, containerId, clickFn) {
+    const years = [...new Set(series.map(d => d.period.slice(0, 4)))].sort();
+    const container = document.getElementById(containerId);
+    container.innerHTML = years.map(y =>
+      `<button class="yf" onclick="${clickFn}('${y}', this)">${y}</button>`
+    ).join('');
+  }
+
+  // ── Redraw helpers ─────────────────────────────────────────────────────────
+
+  function redrawEcb() {
+    const sliced = applyFilter(ecbFullData.m3, ecbFilter);
+    document.getElementById('ecb-chart-title').textContent =
+      'M3 — Money supply trend (EUR) — ' + filterLabel(ecbFilter);
+    renderChart('ecb-chart', sliced, 'M3 (EUR)', '#378ADD', ecbChart, v => ecbChart = v);
+  }
+
+  function redrawRiks() {
+    const sliced = applyFilter(riksFullData.m3, riksFilter);
+    document.getElementById('riksbank-chart-title').textContent =
+      'M3 — Money supply trend (SEK) — ' + filterLabel(riksFilter);
+    renderChart('riksbank-chart', sliced, 'M3 (SEK)', '#1D9E75', riksChart, v => riksChart = v);
+  }
+
+  // ── Growth stats ───────────────────────────────────────────────────────────
 
   function growthHTML(series) {
     if (series.length < 2) return '';
@@ -107,7 +222,9 @@
     return `<div class="card-growth ${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '▲' : '▼'} ${Math.abs(mom).toFixed(2)}% month on month</div>` + yoyHTML;
   }
 
-  function renderCards(containerId, data, currency, divisor, unitLabel) {
+  // ── Render cards ───────────────────────────────────────────────────────────
+
+  function renderCards(containerId, data, currency, divisor) {
     const container = document.getElementById(containerId);
     const { m1, m2, m3 } = data;
     function cardHTML(label, series) {
@@ -121,13 +238,19 @@
         ${growthHTML(series)}
       </div>`;
     }
-    container.innerHTML = cardHTML('M1 — Cash & overnight deposits', m1) + cardHTML('M2 — M1 plus short-term savings', m2) + cardHTML('M3 — Broad money supply', m3);
+    container.innerHTML =
+      cardHTML('M1 — Cash & overnight deposits', m1) +
+      cardHTML('M2 — M1 plus short-term savings', m2) +
+      cardHTML('M3 — Broad money supply', m3);
   }
+
+  // ── Render chart ───────────────────────────────────────────────────────────
 
   function renderChart(canvasId, series, label, color, existing, setter) {
     if (!series || series.length === 0) return;
     if (existing) existing.destroy();
     const ctx = document.getElementById(canvasId).getContext('2d');
+    const showDots = series.length <= 36;
     const inst = new Chart(ctx, {
       type: 'line',
       data: {
@@ -138,7 +261,8 @@
           borderColor: color,
           backgroundColor: color + '18',
           borderWidth: 2,
-          pointRadius: 4,
+          pointRadius: showDots ? 3 : 0,
+          pointHoverRadius: 5,
           fill: true,
           tension: 0.3
         }]
@@ -146,9 +270,12 @@
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(2) + 'T' } }
+        },
         scales: {
-          x: { ticks: { font: { size: 11 }, maxRotation: 45 } },
+          x: { ticks: { font: { size: 11 }, maxRotation: 45, maxTicksLimit: series.length > 60 ? 12 : series.length > 24 ? 18 : 13 } },
           y: { ticks: { font: { size: 11 }, callback: v => v.toFixed(1) + 'T' } }
         }
       }
@@ -156,16 +283,22 @@
     setter(inst);
   }
 
+  // ── Data loaders ───────────────────────────────────────────────────────────
+
   async function loadECB() {
     try {
       const r = await fetch(API_BASE + '/api/ecb');
       const json = await r.json();
       if (!json.success) throw new Error(json.error);
-      renderCards('ecb-cards', json.data, 'EUR', 1e6, 'trillion EUR');
-      renderChart('ecb-chart', json.data.m3, 'M3', '#378ADD', ecbChart, v => ecbChart = v);
+      ecbFullData = json.data;
+      renderCards('ecb-cards', ecbFullData, 'EUR', 1e6);
+      buildYearButtons(ecbFullData.m3, 'ecb-years', 'setEcbYear');
+      document.getElementById('ecb-chart-title').textContent = 'M3 — Money supply trend (EUR) — 12 months';
+      renderChart('ecb-chart', applyFilter(ecbFullData.m3, ecbFilter), 'M3 (EUR)', '#378ADD', ecbChart, v => ecbChart = v);
       document.getElementById('updated').textContent = 'Last updated: ' + new Date().toLocaleString();
     } catch(e) {
       document.getElementById('ecb-cards').innerHTML = '<div class="loading">Could not load ECB data. Try refreshing.</div>';
+      console.error('ECB error:', e);
     }
   }
 
@@ -174,10 +307,14 @@
       const r = await fetch(API_BASE + '/api/riksbank');
       const json = await r.json();
       if (!json.success) throw new Error(json.error);
-      renderCards('riksbank-cards', json.data, 'SEK', 1e6, 'trillion SEK');
-      renderChart('riksbank-chart', json.data.m3, 'M3', '#1D9E75', riksChart, v => riksChart = v);
+      riksFullData = json.data;
+      renderCards('riksbank-cards', riksFullData, 'SEK', 1e6);
+      buildYearButtons(riksFullData.m3, 'riksbank-years', 'setRiksYear');
+      document.getElementById('riksbank-chart-title').textContent = 'M3 — Money supply trend (SEK) — 12 months';
+      renderChart('riksbank-chart', applyFilter(riksFullData.m3, riksFilter), 'M3 (SEK)', '#1D9E75', riksChart, v => riksChart = v);
     } catch(e) {
       document.getElementById('riksbank-cards').innerHTML = '<div class="loading">Could not load Riksbank data. Try refreshing.</div>';
+      console.error('Riksbank error:', e);
     }
   }
 
