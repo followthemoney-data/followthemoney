@@ -41,12 +41,26 @@ app.get('/api/ecb', async (req, res) => {
   }
 });
 
+function getLastNMonths(n) {
+  const months = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    months.push(`${year}M${month}`);
+  }
+  return months;
+}
+
 app.get('/api/riksbank', async (req, res) => {
   try {
-    const data = await fetchWithCache('riksbank_live5', async () => {
-      const url = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data?lang=en&outputFormat=json-stat2&valueCode%5BTid%5D=from(2024M01)';
+    const data = await fetchWithCache('riksbank_live6', async () => {
+      const months = getLastNMonths(13);
+      const periodList = months.join('%2C');
+      const url = `https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data?lang=en&outputFormat=json-stat2&valueCode%5BTid%5D=${periodList}`;
       const r = await fetch(url);
-      if (!r.ok) throw new Error('SCB ' + r.status);
+      if (!r.ok) throw new Error('SCB ' + r.status + ': ' + await r.text().then(t => t.slice(0, 200)));
       return r.json();
     });
 
@@ -76,14 +90,9 @@ app.get('/api/riksbank', async (req, res) => {
     }
 
     const sort = arr => arr.sort((a, b) => a.period.localeCompare(b.period));
-    const latest13 = arr => arr.slice(-13);
     res.json({
       success: true,
-      data: { 
-        m1: latest13(sort(result.m1)), 
-        m2: latest13(sort(result.m2)), 
-        m3: latest13(sort(result.m3)) 
-      },
+      data: { m1: sort(result.m1), m2: sort(result.m2), m3: sort(result.m3) },
       source: 'live',
       periods_found: periods.length
     });
