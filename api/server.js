@@ -44,26 +44,49 @@ app.get('/api/ecb', async (req, res) => {
 app.get('/api/riksbank', async (req, res) => {
   try {
     const data = await fetchWithCache('riksbank', async () => {
-      const url = 'https://statistikdatabasen.scb.se/api/v2/en/ssd/START/FM/FM0201/FM0201A/MoneySupplyM3?query=Tillgångsslag=M1,M2,M3&ContentsCodes=FM0201AA&Tid=TOP(13)&outputFormat=json';
-      const r = await fetch(url);
+      const url = 'https://api.scb.se/OV0104/v1/doris/en/ssd/FM/FM0201/FM0201A/MoneySupplyM3';
+
+      const metaR = await fetch(url);
+      if (!metaR.ok) throw new Error('SCB meta ' + metaR.status);
+      const meta = await metaR.json();
+
+      const tidVar = meta.variables.find(v => v.code === 'Tid');
+      const latestPeriods = tidVar.values.slice(-13);
+
+      const assetVar = meta.variables.find(v => v.code === 'Tillgångsslag' || v.code === 'tillgangsslag' || v.text === 'Type of asset');
+      const assetCode = assetVar ? assetVar.code : meta.variables[0].code;
+      const assetValues = assetVar ? assetVar.values.filter(v => ['M1','M2','M3'].includes(v)) : ['M1','M2','M3'];
+
+      const contentsVar = meta.variables.find(v => v.code === 'ContentsCode' || v.code === 'Innehall');
+      const contentsCode = contentsVar ? contentsVar.code : meta.variables[1].code;
+      const contentsValue = contentsVar ? contentsVar.values[0] : meta.variables[1].values[0];
+
+      const body = {
+        query: [
+          { code: assetCode, selection: { filter: 'item', values: assetValues } },
+          { code: contentsCode, selection: { filter: 'item', values: [contentsValue] } },
+          { code: 'Tid', selection: { filter: 'item', values: latestPeriods } }
+        ],
+        response: { format: 'json' }
+      };
+
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
       if (!r.ok) {
         const text = await r.text();
-        throw new Error('SCB v2 error ' + r.status + ': ' + text.slice(0, 200));
+        throw new Error('SCB POST ' + r.status + ': ' + text.slice(0, 300));
       }
       return r.json();
     });
 
     const m1 = [], m2 = [], m3 = [];
-
-    const tidIndex = data.columns.findIndex(c => c.code === 'Tid');
-    const assetIndex = data.columns.findIndex(c => c.code === 'Tillgångsslag');
-    const valueIndex = data.columns.length - 1;
-
     data.data.forEach(row => {
-      const asset = row.key[assetIndex];
-      const period = row.key[tidIndex];
-      const value = parseFloat(row.values[0]);
-      const entry = { period, value };
+      const entry = { period: row.key[row.key.length - 1], value: parseFloat(row.values[0]) };
+      const asset = row.key[0];
       if (asset === 'M1') m1.push(entry);
       else if (asset === 'M2') m2.push(entry);
       else if (asset === 'M3') m3.push(entry);
