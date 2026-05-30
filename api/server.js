@@ -44,43 +44,29 @@ app.get('/api/ecb', async (req, res) => {
 app.get('/api/riksbank', async (req, res) => {
   try {
     const data = await fetchWithCache('riksbank', async () => {
-      const scbUrl = 'https://api.scb.se/OV0104/v1/doris/sv/ssd/START/FM/FM0201/FM0201A/MoneySupplyM3';
-      
-      const metaR = await fetch(scbUrl);
-      if (!metaR.ok) throw new Error('SCB meta error ' + metaR.status);
-      const meta = await metaR.json();
-      
-      const tidVar = meta.variables.find(v => v.code === 'Tid');
-      const latestPeriods = tidVar.values.slice(-13);
-
-      const body = {
-        query: [
-          { code: "Tillgångsslag", selection: { filter: "item", values: ["M1", "M2", "M3"] } },
-          { code: "ContentsCode", selection: { filter: "item", values: ["FM0201AA"] } },
-          { code: "Tid", selection: { filter: "item", values: latestPeriods } }
-        ],
-        response: { format: "json" }
-      };
-
-      const r = await fetch(scbUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
+      const url = 'https://statistikdatabasen.scb.se/api/v2/en/ssd/START/FM/FM0201/FM0201A/MoneySupplyM3?query=Tillgångsslag=M1,M2,M3&ContentsCodes=FM0201AA&Tid=TOP(13)&outputFormat=json';
+      const r = await fetch(url);
       if (!r.ok) {
         const text = await r.text();
-        throw new Error('SCB error ' + r.status + ': ' + text);
+        throw new Error('SCB v2 error ' + r.status + ': ' + text.slice(0, 200));
       }
       return r.json();
     });
 
     const m1 = [], m2 = [], m3 = [];
+
+    const tidIndex = data.columns.findIndex(c => c.code === 'Tid');
+    const assetIndex = data.columns.findIndex(c => c.code === 'Tillgångsslag');
+    const valueIndex = data.columns.length - 1;
+
     data.data.forEach(row => {
-      const entry = { period: row.key[2], value: parseFloat(row.values[0]) };
-      if (row.key[0] === 'M1') m1.push(entry);
-      else if (row.key[0] === 'M2') m2.push(entry);
-      else if (row.key[0] === 'M3') m3.push(entry);
+      const asset = row.key[assetIndex];
+      const period = row.key[tidIndex];
+      const value = parseFloat(row.values[0]);
+      const entry = { period, value };
+      if (asset === 'M1') m1.push(entry);
+      else if (asset === 'M2') m2.push(entry);
+      else if (asset === 'M3') m3.push(entry);
     });
 
     const sort = arr => arr.sort((a, b) => a.period.localeCompare(b.period));
