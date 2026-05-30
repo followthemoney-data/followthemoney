@@ -43,15 +43,51 @@ app.get('/api/ecb', async (req, res) => {
 
 app.get('/api/riksbank', async (req, res) => {
   try {
-    const url = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data?lang=en&outputFormat=json-stat2';
-    const r = await fetch(url);
-    if (!r.ok) throw new Error('SCB ' + r.status);
-    const data = await r.json();
-    res.json({
-      success: true,
-      keys: Object.keys(data),
-      dimension_keys: data.dimension ? Object.keys(data.dimension) : 'no dimension',
-      sample_values: data.value ? data.value.slice(0, 10) : 'no values'
+    const data = await fetchWithCache('riksbank_live', async () => {
+      const url = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data?lang=en&outputFormat=json-stat2';
+      const r = await fetch(url);
+      if (!r.ok) throw new Error('SCB ' + r.status);
+      return r.json();
+    });
+
+    const values = data.value;
+    const aggregates = Object.keys(data.dimension.Penningm.category.index);
+    const periods = Object.keys(data.dimension.Tid.category.index);
+    const contents = Object.keys(data.dimension.ContentsCode.category.index);
+
+    const nAgg = aggregates.length;
+    const nPeriods = periods.length;
+    const nContents = contents.length;
+
+    const m1 = [], m2 = [], m3 = [];
+
+    for (let a = 0; a < nAgg; a++) {
+      for (let p = 0; p < nPeriods; p++) {
+        for (let c = 0; c < nContents; c++) {
+          const idx = a * nPeriods * nContents + p * nContents + c;
+          const contentCode = contents[c];
+          if (contentCode !== 'FM0201AA') continue;
+          const period = periods[p].replace('M', '-');
+          const value = values[idx];
+          const agg = aggregates[a];
+          const entry = { period, value };
+          if (agg === 'M1') m1.push(entry);
+          else if (agg === 'M2') m2.push(entry);
+          else if (agg === 'M3') m3.push(entry);
+        }
+      }
+    }
+
+    const sort = arr => arr.sort((a, b) => a.period.localeCompare(b.period));
+    const latest13 = arr => arr.slice(-13);
+    res.json({ 
+      success: true, 
+      data: { 
+        m1: latest13(sort(m1)), 
+        m2: latest13(sort(m2)), 
+        m3: latest13(sort(m3)) 
+      }, 
+      source: 'live' 
     });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
