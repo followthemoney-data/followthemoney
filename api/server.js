@@ -61,14 +61,15 @@ app.get('/api/riksbank', async (req, res) => {
 
     const m1 = [], m2 = [], m3 = [];
 
-    for (let a = 0; a < nAgg; a++) {
-      for (let p = 0; p < nPeriods; p++) {
+    for (let p = 0; p < nPeriods; p++) {
+      for (let a = 0; a < nAgg; a++) {
         for (let c = 0; c < nContents; c++) {
-          const idx = a * nPeriods * nContents + p * nContents + c;
+          const idx = p * nAgg * nContents + a * nContents + c;
           const contentCode = contents[c];
           if (contentCode !== 'FM0201AA') continue;
           const period = periods[p].replace('M', '-');
           const value = values[idx];
+          if (value === null || value === undefined) continue;
           const agg = aggregates[a];
           const entry = { period, value };
           if (agg === 'M1') m1.push(entry);
@@ -80,14 +81,14 @@ app.get('/api/riksbank', async (req, res) => {
 
     const sort = arr => arr.sort((a, b) => a.period.localeCompare(b.period));
     const latest13 = arr => arr.slice(-13);
-    res.json({ 
-      success: true, 
-      data: { 
-        m1: latest13(sort(m1)), 
-        m2: latest13(sort(m2)), 
-        m3: latest13(sort(m3)) 
-      }, 
-      source: 'live' 
+    res.json({
+      success: true,
+      data: {
+        m1: latest13(sort(m1)),
+        m2: latest13(sort(m2)),
+        m3: latest13(sort(m3))
+      },
+      source: 'live'
     });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
