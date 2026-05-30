@@ -43,8 +43,8 @@ app.get('/api/ecb', async (req, res) => {
 
 app.get('/api/riksbank', async (req, res) => {
   try {
-    const data = await fetchWithCache('riksbank_live2', async () => {
-      const url = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data?lang=en&outputFormat=json-stat2&valueCode[Tid]=top(13)&valueCode[ContentsCode]=000007WQ';
+    const data = await fetchWithCache('riksbank_live3', async () => {
+      const url = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data?lang=en&outputFormat=json-stat2&valueCode[Tid]=top(13)';
       const r = await fetch(url);
       if (!r.ok) throw new Error('SCB ' + r.status);
       return r.json();
@@ -53,14 +53,18 @@ app.get('/api/riksbank', async (req, res) => {
     const values = data.value;
     const aggregates = Object.keys(data.dimension.Penningm.category.index);
     const periods = Object.keys(data.dimension.Tid.category.index);
+    const contents = Object.keys(data.dimension.ContentsCode.category.index);
     const nAgg = aggregates.length;
     const nPeriods = periods.length;
+    const nContents = contents.length;
+
+    const volumeContentIdx = contents.findIndex(c => c === '000007WQ');
 
     const result = { m1: [], m2: [], m3: [] };
 
     for (let p = 0; p < nPeriods; p++) {
       for (let a = 0; a < nAgg; a++) {
-        const idx = p * nAgg + a;
+        const idx = p * nAgg * nContents + a * nContents + volumeContentIdx;
         const period = periods[p].replace('M', '-');
         const value = values[idx];
         if (value === null || value === undefined) continue;
