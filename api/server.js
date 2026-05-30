@@ -7,14 +7,12 @@ app.use(cors());
 
 let cache = {};
 
-async function fetchWithCache(key, url, ttlMinutes = 60) {
+async function fetchWithCache(key, fetchFn, ttlMinutes = 60) {
   const now = Date.now();
   if (cache[key] && now - cache[key].timestamp < ttlMinutes * 60 * 1000) {
     return cache[key].data;
   }
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Failed to fetch ' + url);
-  const data = await response.json();
+  const data = await fetchFn();
   cache[key] = { data, timestamp: now };
   return data;
 }
@@ -25,7 +23,11 @@ app.get('/api/ecb', async (req, res) => {
     const results = {};
     for (const s of series) {
       const url = `https://data-api.ecb.europa.eu/service/data/BSI/M.U2.Y.V.${s}.X.1.U2.2300.Z01.E?format=jsondata&lastNObservations=13`;
-      const data = await fetchWithCache('ecb_' + s, url);
+      const data = await fetchWithCache('ecb_' + s, async () => {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error('ECB API ' + r.status);
+        return r.json();
+      });
       const obs = data.dataSets[0].series['0:0:0:0:0:0:0:0:0:0:0'].observations;
       const periods = data.structure.dimensions.observation[0].values;
       const entries = Object.entries(obs)
@@ -41,28 +43,45 @@ app.get('/api/ecb', async (req, res) => {
 
 app.get('/api/riksbank', async (req, res) => {
   try {
-    const body = {
-      query: [
-        { code: "Tillgångsslag", selection: { filter: "item", values: ["M1","M2","M3"] } },
-        { code: "ContentsCode", selection: { filter: "item", values: ["FM0201AA"] } },
-        { code: "Tid", selection: { filter: "top", values: ["13"] } }
-      ],
-      response: { format: "json" }
-    };
-    const response = await fetch('https://api.scb.se/OV0104/v1/doris/en/ssd/START/FM/FM0201/FM0201A/MoneySupplyM3', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+    const data = await fetchWithCache('riksbank', async () => {
+      const m1url = 'https://api.riksbank.se/swea/v1/CrossRates/se/M1/latest/13';
+      
+      const queries = ['M1', 'M2', 'M3'].map(async (measure) => {
+        const url = `https://www.riksbank.se/sv/statistik/penningmangd/?period=monthly&from=2024-01-01`;
+        return { measure, entries: [] };
+      });
+
+      const scbUrl = 'https://api.scb.se/OV0104/v1/doris/en/ssd/START/FM/FM0201/FM0201A/MoneySupplyM3';
+      const body = {
+        query: [
+          { code: "Tillgångsslag", selection: { filter: "item", values: ["M1", "M2", "M3"] } },
+          { code: "ContentsCode", selection: { filter: "item", values: ["FM0201AA"] } },
+          { code: "Tid", selection: { filter: "top", values: ["13"] } }
+        ],
+        response: { format: "json" }
+      };
+
+      const r = await fetch(scbUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!r.ok) {
+        const text = await r.text();
+        throw new Error('SCB error ' + r.status + ': ' + text);
+      }
+      return r.json();
     });
-    if (!response.ok) throw new Error('SCB API error');
-    const raw = await response.json();
+
     const m1 = [], m2 = [], m3 = [];
-    raw.data.forEach(row => {
+    data.data.forEach(row => {
       const entry = { period: row.key[2], value: parseFloat(row.values[0]) };
       if (row.key[0] === 'M1') m1.push(entry);
       else if (row.key[0] === 'M2') m2.push(entry);
       else if (row.key[0] === 'M3') m3.push(entry);
     });
+
     const sort = arr => arr.sort((a, b) => a.period.localeCompare(b.period));
     res.json({ success: true, data: { m1: sort(m1), m2: sort(m2), m3: sort(m3) } });
   } catch (e) {
