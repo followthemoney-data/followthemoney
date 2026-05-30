@@ -12,6 +12,12 @@ const redis = new Redis({
   token: process.env.KV_REST_API_TOKEN,
 });
 
+// ─── Confirmed SCB v1 path for money supply table ─────────────────────────────
+// FM/FM5001/FM5001A/FM5001penningmangd
+// "Growth rate and volume by money supply. Month 1999M01 - present"
+// Discovered by navigating api.scb.se/OV0104/v1/doris/en/ssd tree.
+const SCB_V1_URL = 'https://api.scb.se/OV0104/v1/doris/en/ssd/FM/FM5001/FM5001A/FM5001penningmangd';
+
 // ─── ECB endpoint ─────────────────────────────────────────────────────────────
 
 app.get('/api/ecb', async (req, res) => {
@@ -35,23 +41,6 @@ app.get('/api/ecb', async (req, res) => {
   } catch (e) {
     console.error('ECB error:', e);
     res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-// ─── SCB v1 API tree navigation ───────────────────────────────────────────────
-// These endpoints let us browse the v1 API tree to find the correct path for TAB6541.
-
-// Browse root level subjects
-app.get('/api/scb-browse', async (req, res) => {
-  try {
-    const path = req.query.path || '';
-    const url = `https://api.scb.se/OV0104/v1/doris/en/ssd/${path}`;
-    const r = await fetch(url);
-    if (!r.ok) return res.json({ error: `HTTP ${r.status}`, url, body: await r.text() });
-    const data = await r.json();
-    res.json({ url, data });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
   }
 });
 
@@ -112,6 +101,8 @@ function parseScbJsonStat2(data) {
 }
 
 // ─── Riksbank live endpoint ───────────────────────────────────────────────────
+// On every visit: fetches the latest period from SCB v2, saves it to Redis,
+// then returns the full history from Redis.
 
 app.get('/api/riksbank', async (req, res) => {
   try {
@@ -120,6 +111,7 @@ app.get('/api/riksbank', async (req, res) => {
     const M3 = '5LLM3a.1E.NEP.V.A';
     const VOL = '000007WQ';
 
+    // SCB v2 only returns the latest period — that's fine for live updates
     const scbUrl = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data' +
       `?lang=en&outputFormat=json-stat2` +
       `&valueCodes[Penningm]=${encodeURIComponent(M1)},${encodeURIComponent(M2)},${encodeURIComponent(M3)}` +
@@ -132,12 +124,14 @@ app.get('/api/riksbank', async (req, res) => {
     const rows = parseScbJsonStat2(data);
     const latest = rows.length > 0 ? rows[rows.length - 1] : null;
 
+    // Save latest to Redis (adds new month automatically when SCB publishes it)
     if (latest) {
       await redis.hset(`riksbank:${latest.period}`, {
         m1: latest.m1, m2: latest.m2, m3: latest.m3,
       });
     }
 
+    // Return full history from Redis
     const storedKeys = await redis.keys('riksbank:*');
     storedKeys.sort();
     const history = { m1: [], m2: [], m3: [] };
@@ -162,37 +156,18 @@ app.get('/api/riksbank', async (req, res) => {
   }
 });
 
-// ─── Seed endpoint (uses v1 path discovered via /api/scb-browse) ──────────────
+// ─── Seed endpoint ────────────────────────────────────────────────────────────
+// Uses SCB v1 API with filter:"all" to fetch ALL historical periods at once.
+// Run this once to populate Redis. After that, /api/riksbank keeps it updated.
 
 app.get('/api/seed', async (req, res) => {
   try {
-    // Path confirmed by browsing /api/scb-browse
-    const v1Path = req.query.path || 'START/FM/FM0201/FM0201A/FM0201TAB6541';
-    const V1_URL = `https://api.scb.se/OV0104/v1/doris/en/ssd/${v1Path}`;
-
-    // Step 1: GET metadata to discover variable codes
-    const metaR = await fetch(V1_URL);
-    if (!metaR.ok) {
-      const body = await metaR.text();
-      return res.status(400).json({
-        success: false,
-        error: `Metadata fetch failed: HTTP ${metaR.status}`,
-        url: V1_URL,
-        body: body.slice(0, 500)
-      });
-    }
+    // Step 1: GET metadata from v1 to get variable codes
+    const metaR = await fetch(SCB_V1_URL);
+    if (!metaR.ok) throw new Error(`SCB v1 metadata HTTP ${metaR.status}`);
     const meta = await metaR.json();
 
-    // Show variables in response for debugging
-    const variableSummary = meta.variables?.map(v => ({
-      code: v.code,
-      text: v.text,
-      valueCount: v.values?.length,
-      firstValues: v.values?.slice(0, 3),
-      lastValues: v.values?.slice(-3),
-    }));
-
-    // Step 2: POST with filter:"all" to get every period
+    // Step 2: POST with filter:"all" — fetches every available period
     const query = {
       query: meta.variables.map(v => ({
         code: v.code,
@@ -201,49 +176,31 @@ app.get('/api/seed', async (req, res) => {
       response: { format: 'json-stat2' }
     };
 
-    const dataR = await fetch(V1_URL, {
+    const dataR = await fetch(SCB_V1_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(query)
     });
-
-    if (!dataR.ok) {
-      const body = await dataR.text();
-      return res.status(400).json({
-        success: false,
-        error: `Data fetch failed: HTTP ${dataR.status}`,
-        url: V1_URL,
-        body: body.slice(0, 500),
-        variableSummary
-      });
-    }
+    if (!dataR.ok) throw new Error(`SCB v1 data HTTP ${dataR.status}: ${await dataR.text().then(t => t.slice(0, 300))}`);
 
     const data = await dataR.json();
     const rows = parseScbJsonStat2(data);
 
     if (rows.length <= 1) {
-      return res.json({
-        success: false,
-        message: `Only ${rows.length} period(s) returned — v1 path may be wrong.`,
-        url: V1_URL,
-        variableSummary,
-        rows
-      });
+      return res.json({ success: false, message: `Only ${rows.length} period(s) returned.`, rows });
     }
 
     // Step 3: Write all rows to Redis
-    let written = 0;
     for (const row of rows) {
       await redis.hset(`riksbank:${row.period}`, {
         m1: row.m1, m2: row.m2, m3: row.m3,
       });
-      written++;
     }
 
     res.json({
       success: true,
-      message: `Seed complete. Wrote ${written} periods to Redis.`,
-      seeded: written,
+      message: `Seed complete. Wrote ${rows.length} periods to Redis.`,
+      seeded: rows.length,
       firstPeriod: rows[0].period,
       lastPeriod: rows[rows.length - 1].period,
       sample: rows.slice(-3),
@@ -277,6 +234,21 @@ app.get('/api/status', async (req, res) => {
       firstPeriod: keys[0] ? keys[0].replace('riksbank:', '') : null,
       lastPeriod: keys[keys.length - 1] ? keys[keys.length - 1].replace('riksbank:', '') : null,
     });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── Browse endpoint (for debugging the v1 API tree) ─────────────────────────
+
+app.get('/api/scb-browse', async (req, res) => {
+  try {
+    const path = req.query.path || '';
+    const url = `https://api.scb.se/OV0104/v1/doris/en/ssd/${path}`;
+    const r = await fetch(url);
+    if (!r.ok) return res.json({ error: `HTTP ${r.status}`, url });
+    const data = await r.json();
+    res.json({ url, data });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
