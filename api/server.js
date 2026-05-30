@@ -44,19 +44,20 @@ app.get('/api/ecb', async (req, res) => {
 app.get('/api/riksbank', async (req, res) => {
   try {
     const data = await fetchWithCache('riksbank', async () => {
-      const m1url = 'https://api.riksbank.se/swea/v1/CrossRates/se/M1/latest/13';
+      const scbUrl = 'https://api.scb.se/OV0104/v1/doris/sv/ssd/START/FM/FM0201/FM0201A/MoneySupplyM3';
       
-      const queries = ['M1', 'M2', 'M3'].map(async (measure) => {
-        const url = `https://www.riksbank.se/sv/statistik/penningmangd/?period=monthly&from=2024-01-01`;
-        return { measure, entries: [] };
-      });
+      const metaR = await fetch(scbUrl);
+      if (!metaR.ok) throw new Error('SCB meta error ' + metaR.status);
+      const meta = await metaR.json();
+      
+      const tidVar = meta.variables.find(v => v.code === 'Tid');
+      const latestPeriods = tidVar.values.slice(-13);
 
-      const scbUrl = 'https://api.scb.se/OV0104/v1/doris/en/ssd/START/FM/FM0201/FM0201A/MoneySupplyM3';
       const body = {
         query: [
           { code: "Tillgångsslag", selection: { filter: "item", values: ["M1", "M2", "M3"] } },
           { code: "ContentsCode", selection: { filter: "item", values: ["FM0201AA"] } },
-          { code: "Tid", selection: { filter: "top", values: ["13"] } }
+          { code: "Tid", selection: { filter: "item", values: latestPeriods } }
         ],
         response: { format: "json" }
       };
