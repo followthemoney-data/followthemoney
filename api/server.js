@@ -385,13 +385,13 @@ app.get('/api/norway', async (req, res) => {
 // Units: EUR millions. No auth needed.
 
 app.get('/api/germany-debug', async (req, res) => {
-  // Test one series key to verify the format works
-  const url = 'https://api.statistiken.bundesbank.de/rest/data/BBSIS/M.DE.Y.V.M30.X.1.U2.2300.Z01.E' +
+  // Try wildcard search in BBK01 for German money supply series
+  const url = 'https://api.statistiken.bundesbank.de/rest/data/BBK01/EU8148+EU8136+EU8130' +
     '?format=sdmx_csv&lang=en&startPeriod=2025-01';
   try {
     const r = await fetch(url);
     const text = await r.text();
-    res.json({ status: r.status, url, preview: text.slice(0, 500) });
+    res.json({ status: r.status, url, preview: text.slice(0, 1000) });
   } catch (e) {
     res.json({ error: e.message, url });
   }
