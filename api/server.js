@@ -13,16 +13,12 @@ const redis = new Redis({
 });
 
 // ─── ECB endpoint ─────────────────────────────────────────────────────────────
-// Fetches ALL available M1/M2/M3 data for Euro Area from Jan 1997 onwards.
-// The ECB back-calculated harmonised data to Jan 1997, before the euro physically launched.
 
 app.get('/api/ecb', async (req, res) => {
   try {
     const series = ['M10', 'M20', 'M30'];
     const results = {};
     for (const s of series) {
-      // startPeriod=1997-01 fetches from the very beginning of available data.
-      // No lastNObservations limit — we want the full history.
       const url = `https://data-api.ecb.europa.eu/service/data/BSI/M.U2.Y.V.${s}.X.1.U2.2300.Z01.E?format=jsondata&startPeriod=1997-01`;
       const r = await fetch(url);
       if (!r.ok) throw new Error('ECB API ' + r.status);
@@ -42,10 +38,26 @@ app.get('/api/ecb', async (req, res) => {
   }
 });
 
-// ─── SCB parser ───────────────────────────────────────────────────────────────
-// Parses json-stat2 response from SCB into array of { period, m1, m2, m3 }
+// ─── SCB v1 API tree navigation ───────────────────────────────────────────────
+// These endpoints let us browse the v1 API tree to find the correct path for TAB6541.
 
-function parseScbData(data) {
+// Browse root level subjects
+app.get('/api/scb-browse', async (req, res) => {
+  try {
+    const path = req.query.path || '';
+    const url = `https://api.scb.se/OV0104/v1/doris/en/ssd/${path}`;
+    const r = await fetch(url);
+    if (!r.ok) return res.json({ error: `HTTP ${r.status}`, url, body: await r.text() });
+    const data = await r.json();
+    res.json({ url, data });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── SCB parser ───────────────────────────────────────────────────────────────
+
+function parseScbJsonStat2(data) {
   const M1 = '5LLM1.1E.NEP.V.A';
   const M2 = '5LLM2.1E.NEP.V.A';
   const M3 = '5LLM3a.1E.NEP.V.A';
@@ -70,7 +82,7 @@ function parseScbData(data) {
   const volPos = contentsCodes.indexOf(VOL);
 
   if (m1Pos === -1 || m2Pos === -1 || m3Pos === -1 || volPos === -1) {
-    throw new Error(`Missing expected codes. m1:${m1Pos} m2:${m2Pos} m3:${m3Pos} vol:${volPos}`);
+    throw new Error(`Missing codes. m1:${m1Pos} m2:${m2Pos} m3:${m3Pos} vol:${volPos}`);
   }
 
   function flatIdx(coords) {
@@ -89,11 +101,9 @@ function parseScbData(data) {
     const match = rawPeriod.match(/^(\d{4})M(\d{2})$/);
     if (!match) continue;
     const period = `${match[1]}-${match[2]}`;
-
     const m1Val = values[flatIdx({ Penningm: m1Pos, ContentsCode: volPos, Tid: t })];
     const m2Val = values[flatIdx({ Penningm: m2Pos, ContentsCode: volPos, Tid: t })];
     const m3Val = values[flatIdx({ Penningm: m3Pos, ContentsCode: volPos, Tid: t })];
-
     if (m1Val != null && m2Val != null && m3Val != null) {
       results.push({ period, m1: m1Val, m2: m2Val, m3: m3Val });
     }
@@ -117,17 +127,14 @@ app.get('/api/riksbank', async (req, res) => {
       `&valueCodes[Tid]=top(1)`;
 
     const r = await fetch(scbUrl);
-    if (!r.ok) throw new Error('SCB ' + r.status + ': ' + await r.text().then(t => t.slice(0, 300)));
+    if (!r.ok) throw new Error('SCB v2 ' + r.status);
     const data = await r.json();
-
-    const rows = parseScbData(data);
+    const rows = parseScbJsonStat2(data);
     const latest = rows.length > 0 ? rows[rows.length - 1] : null;
 
     if (latest) {
       await redis.hset(`riksbank:${latest.period}`, {
-        m1: latest.m1,
-        m2: latest.m2,
-        m3: latest.m3,
+        m1: latest.m1, m2: latest.m2, m3: latest.m3,
       });
     }
 
@@ -155,36 +162,81 @@ app.get('/api/riksbank', async (req, res) => {
   }
 });
 
-// ─── Seed endpoint ────────────────────────────────────────────────────────────
+// ─── Seed endpoint (uses v1 path discovered via /api/scb-browse) ──────────────
 
 app.get('/api/seed', async (req, res) => {
   try {
-    const M1 = '5LLM1.1E.NEP.V.A';
-    const M2 = '5LLM2.1E.NEP.V.A';
-    const M3 = '5LLM3a.1E.NEP.V.A';
-    const VOL = '000007WQ';
+    // Path confirmed by browsing /api/scb-browse
+    const v1Path = req.query.path || 'START/FM/FM0201/FM0201A/FM0201TAB6541';
+    const V1_URL = `https://api.scb.se/OV0104/v1/doris/en/ssd/${v1Path}`;
 
-    const scbUrl = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data' +
-      `?lang=en&outputFormat=json-stat2` +
-      `&valueCodes[Penningm]=${encodeURIComponent(M1)},${encodeURIComponent(M2)},${encodeURIComponent(M3)}` +
-      `&valueCodes[ContentsCode]=${VOL}` +
-      `&valueCodes[Tid]=*`;
-
-    const r = await fetch(scbUrl);
-    if (!r.ok) {
-      const errText = await r.text();
-      throw new Error(`SCB ${r.status}: ${errText.slice(0, 500)}`);
+    // Step 1: GET metadata to discover variable codes
+    const metaR = await fetch(V1_URL);
+    if (!metaR.ok) {
+      const body = await metaR.text();
+      return res.status(400).json({
+        success: false,
+        error: `Metadata fetch failed: HTTP ${metaR.status}`,
+        url: V1_URL,
+        body: body.slice(0, 500)
+      });
     }
-    const data = await r.json();
-    const rows = parseScbData(data);
+    const meta = await metaR.json();
 
-    if (rows.length === 0) {
-      return res.json({ success: false, message: 'SCB returned 0 rows.' });
+    // Show variables in response for debugging
+    const variableSummary = meta.variables?.map(v => ({
+      code: v.code,
+      text: v.text,
+      valueCount: v.values?.length,
+      firstValues: v.values?.slice(0, 3),
+      lastValues: v.values?.slice(-3),
+    }));
+
+    // Step 2: POST with filter:"all" to get every period
+    const query = {
+      query: meta.variables.map(v => ({
+        code: v.code,
+        selection: { filter: 'all', values: ['*'] }
+      })),
+      response: { format: 'json-stat2' }
+    };
+
+    const dataR = await fetch(V1_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(query)
+    });
+
+    if (!dataR.ok) {
+      const body = await dataR.text();
+      return res.status(400).json({
+        success: false,
+        error: `Data fetch failed: HTTP ${dataR.status}`,
+        url: V1_URL,
+        body: body.slice(0, 500),
+        variableSummary
+      });
     }
 
+    const data = await dataR.json();
+    const rows = parseScbJsonStat2(data);
+
+    if (rows.length <= 1) {
+      return res.json({
+        success: false,
+        message: `Only ${rows.length} period(s) returned — v1 path may be wrong.`,
+        url: V1_URL,
+        variableSummary,
+        rows
+      });
+    }
+
+    // Step 3: Write all rows to Redis
     let written = 0;
     for (const row of rows) {
-      await redis.hset(`riksbank:${row.period}`, { m1: row.m1, m2: row.m2, m3: row.m3 });
+      await redis.hset(`riksbank:${row.period}`, {
+        m1: row.m1, m2: row.m2, m3: row.m3,
+      });
       written++;
     }
 
@@ -211,28 +263,6 @@ app.get('/api/wipe', async (req, res) => {
     res.json({ success: true, wiped: keys.length });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-// ─── Debug endpoint ───────────────────────────────────────────────────────────
-
-app.get('/api/scb-debug', async (req, res) => {
-  try {
-    const M1 = '5LLM1.1E.NEP.V.A';
-    const M2 = '5LLM2.1E.NEP.V.A';
-    const M3 = '5LLM3a.1E.NEP.V.A';
-    const VOL = '000007WQ';
-    const url = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data' +
-      `?lang=en&outputFormat=json-stat2` +
-      `&valueCodes[Penningm]=${encodeURIComponent(M1)},${encodeURIComponent(M2)},${encodeURIComponent(M3)}` +
-      `&valueCodes[ContentsCode]=${VOL}` +
-      `&valueCodes[Tid]=top(3)`;
-    const r = await fetch(url);
-    const text = await r.text();
-    res.set('Content-Type', 'application/json');
-    res.send(text);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
   }
 });
 
