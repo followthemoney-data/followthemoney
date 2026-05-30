@@ -387,7 +387,7 @@ app.get('/api/norway', async (req, res) => {
 app.get('/api/germany-debug', async (req, res) => {
   // Test one series key to verify the format works
   const url = 'https://api.statistiken.bundesbank.de/rest/data/BBSIS/M.DE.Y.V.M30.X.1.U2.2300.Z01.E' +
-    '?format=csvdata&lang=en&startPeriod=2025-01';
+    '?format=sdmx_csv&lang=en&startPeriod=2025-01';
   try {
     const r = await fetch(url);
     const text = await r.text();
@@ -409,7 +409,7 @@ app.get('/api/germany', async (req, res) => {
     };
 
     async function fetchSeries(key) {
-      const url = `${BASE}/${key}?format=csvdata&lang=en`;
+      const url = `${BASE}/${key}?format=sdmx_csv&lang=en`;
       const r = await fetch(url);
       if (!r.ok) throw new Error(`Bundesbank HTTP ${r.status} for ${key}: ${await r.text().then(t => t.slice(0, 200))}`);
       const text = await r.text();
