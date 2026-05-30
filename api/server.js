@@ -366,5 +366,66 @@ app.get('/api/norway', async (req, res) => {
   }
 });
 
+// ─── Switzerland (SNB) endpoint ───────────────────────────────────────────────
+// SNB data portal: data.snb.ch/api/cube/snbmonagg
+// Dimensions confirmed: D0(B)=Level, D1(GM1/GM2/GM3)=M1/M2/M3
+// CSV format, semicolon-separated, data starts at row 4 (0-indexed)
+// Units: CHF millions. No auth needed. Full history: 1984-01 onwards.
+// Three separate fetches (one per aggregate) — SNB doesn't support multi-value D1 in one call.
+
+app.get('/api/switzerland', async (req, res) => {
+  try {
+    const BASE = 'https://data.snb.ch/api/cube/snbmonagg/data/csv/en';
+
+    async function fetchAggregate(code) {
+      const url = `${BASE}?dimSel=D0(B),D1(${code})`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`SNB HTTP ${r.status} for ${code}`);
+      const text = await r.text();
+
+      // CSV format:
+      // Line 0: "CubeId";"snbmonagg"
+      // Line 1: "PublishingDate";"..."
+      // Line 2: (blank)
+      // Line 3: "Date";"D0";"D1";"Value"
+      // Line 4+: data rows
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      const dataLines = lines.slice(3); // skip header lines, keep column header + data
+
+      const series = [];
+      for (const line of dataLines) {
+        if (line.startsWith('"Date"')) continue; // skip column header
+        // Each row: "YYYY-MM";"B";"GM1";"123456"
+        const parts = line.split(';').map(p => p.replace(/"/g, '').trim());
+        if (parts.length < 4) continue;
+        const [date, , , value] = parts;
+        if (!date || !value || isNaN(Number(value))) continue;
+        // date format is already "YYYY-MM"
+        series.push({ period: date, value: Number(value) });
+      }
+      return series.sort((a, b) => a.period.localeCompare(b.period));
+    }
+
+    const [m1, m2, m3] = await Promise.all([
+      fetchAggregate('GM1'),
+      fetchAggregate('GM2'),
+      fetchAggregate('GM3'),
+    ]);
+
+    if (!m3.length) throw new Error('No data returned from SNB');
+
+    res.json({
+      success: true,
+      data: { m1, m2, m3 },
+      periods: m3.length,
+      firstPeriod: m3[0]?.period,
+      lastPeriod: m3[m3.length - 1]?.period,
+    });
+  } catch (e) {
+    console.error('Switzerland error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Server running on port ' + PORT));
