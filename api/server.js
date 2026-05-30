@@ -378,7 +378,7 @@ app.get('/api/switzerland', async (req, res) => {
     const BASE = 'https://data.snb.ch/api/cube/snbmonagg/data/csv/en';
 
     async function fetchAggregate(code) {
-      const url = `${BASE}?dimSel=D0(B),D1(${code})`;
+      const url = `${BASE}?dimSel=D0(B),D1(${code})&fromDate=1984-01`;
       const r = await fetch(url);
       if (!r.ok) throw new Error(`SNB HTTP ${r.status} for ${code}`);
       const text = await r.text();
