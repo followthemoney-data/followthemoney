@@ -385,16 +385,26 @@ app.get('/api/norway', async (req, res) => {
 // Units: EUR millions. No auth needed.
 
 app.get('/api/germany-debug', async (req, res) => {
-  // Try wildcard search in BBK01 for German money supply series
-  const url = 'https://api.statistiken.bundesbank.de/rest/data/BBK01/EU8148+EU8136+EU8130' +
-    '?format=sdmx_csv&lang=en&startPeriod=2025-01';
-  try {
-    const r = await fetch(url);
-    const text = await r.text();
-    res.json({ status: r.status, url, preview: text.slice(0, 1000) });
-  } catch (e) {
-    res.json({ error: e.message, url });
+  // Use wildcards to discover current BBK01 money supply series keys
+  // The Bundesbank supports * as wildcard in BBK01
+  // Try searching for series containing "M3" or "Geldmenge" patterns
+  const attempts = [
+    // Wildcard search for anything containing M3 in BBK01
+    'https://api.statistiken.bundesbank.de/rest/data/BBK01/*M3*?format=sdmx_csv&lang=en&startPeriod=2025-01&lastNObservations=2',
+    // Try the new alphanumeric format — OXA pattern seen in other BBK01 keys
+    'https://api.statistiken.bundesbank.de/rest/data/BBK01/OXA8B2?format=sdmx_csv&lang=en&startPeriod=2025-01',
+  ];
+  const results = [];
+  for (const url of attempts) {
+    try {
+      const r = await fetch(url);
+      const text = await r.text();
+      results.push({ status: r.status, url: url.split('?')[0], preview: text.slice(0, 500) });
+    } catch (e) {
+      results.push({ error: e.message, url });
+    }
   }
+  res.json(results);
 });
 
 app.get('/api/germany', async (req, res) => {
