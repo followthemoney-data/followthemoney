@@ -254,5 +254,117 @@ app.get('/api/scb-browse', async (req, res) => {
   }
 });
 
+// ─── Norway debug endpoint ────────────────────────────────────────────────────
+// Shows raw SSB response for last 2 periods so we can confirm dimension codes.
+
+app.get('/api/norway-debug', async (req, res) => {
+  try {
+    const url = 'https://data.ssb.no/api/pxwebapi/v2/tables/10945/data' +
+      '?lang=en&outputFormat=json-stat2' +
+      '&valueCodes[ContentsCode]=*' +
+      '&valueCodes[Tid]=top(2)';
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`SSB HTTP ${r.status}: ${await r.text().then(t => t.slice(0, 300))}`);
+    const data = await r.json();
+    // Return a summary: dimension names, codes, and the raw values
+    res.json({
+      id: data.id,
+      size: data.size,
+      dimensions: Object.fromEntries(
+        data.id.map(dim => [dim, {
+          label: data.dimension[dim].label,
+          codes: Object.keys(data.dimension[dim].category.index)
+        }])
+      ),
+      valueCount: data.value?.length,
+      sampleValues: data.value?.slice(0, 10)
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── Norway endpoint ──────────────────────────────────────────────────────────
+// Fetches ALL M1/M2/M3 history from SSB Norway directly — no Redis needed.
+// SSB v2 wildcard actually works unlike SCB.
+
+app.get('/api/norway', async (req, res) => {
+  try {
+    const url = 'https://data.ssb.no/api/pxwebapi/v2/tables/10945/data' +
+      '?lang=en&outputFormat=json-stat2' +
+      '&valueCodes[ContentsCode]=*' +
+      '&valueCodes[Tid]=*';
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`SSB HTTP ${r.status}: ${await r.text().then(t => t.slice(0, 300))}`);
+    const data = await r.json();
+
+    // Parse dimensions
+    const dimIds = data.id;
+    const dimSizes = data.size;
+    const values = data.value;
+
+    const getOrderedCodes = (dimName) => {
+      const cat = data.dimension[dimName].category;
+      return Object.keys(cat.index).sort((a, b) => cat.index[a] - cat.index[b]);
+    };
+
+    const contentsCodes = getOrderedCodes('ContentsCode');
+    const tidCodes = getOrderedCodes('Tid');
+
+    // Find the stock (volume) codes for M1, M2, M3
+    // Codes confirmed from SSB: M1 stocks, M2 stocks, M3 stocks
+    const contentsLabels = data.dimension['ContentsCode'].category.label;
+    const m1Idx = contentsCodes.findIndex(c => contentsLabels[c]?.includes('M1') && contentsLabels[c]?.includes('Stocks'));
+    const m2Idx = contentsCodes.findIndex(c => contentsLabels[c]?.includes('M2') && contentsLabels[c]?.includes('Stocks'));
+    const m3Idx = contentsCodes.findIndex(c => contentsLabels[c]?.includes('M3') && contentsLabels[c]?.includes('Stocks'));
+
+    if (m1Idx === -1 || m2Idx === -1 || m3Idx === -1) {
+      // Return available codes to help debug
+      return res.json({
+        success: false,
+        message: 'Could not find M1/M2/M3 stock codes',
+        availableCodes: contentsCodes.map(c => ({ code: c, label: contentsLabels[c] }))
+      });
+    }
+
+    function flatIdx(coords) {
+      let idx = 0;
+      let stride = 1;
+      for (let i = dimIds.length - 1; i >= 0; i--) {
+        idx += coords[dimIds[i]] * stride;
+        stride *= dimSizes[i];
+      }
+      return idx;
+    }
+
+    const m1 = [], m2 = [], m3 = [];
+    for (let t = 0; t < tidCodes.length; t++) {
+      const rawPeriod = tidCodes[t]; // e.g. "2024M03"
+      const match = rawPeriod.match(/^(\d{4})M(\d{2})$/);
+      if (!match) continue;
+      const period = `${match[1]}-${match[2]}`;
+
+      const v1 = values[flatIdx({ ContentsCode: m1Idx, Tid: t })];
+      const v2 = values[flatIdx({ ContentsCode: m2Idx, Tid: t })];
+      const v3 = values[flatIdx({ ContentsCode: m3Idx, Tid: t })];
+
+      if (v1 != null) m1.push({ period, value: v1 });
+      if (v2 != null) m2.push({ period, value: v2 });
+      if (v3 != null) m3.push({ period, value: v3 });
+    }
+
+    res.json({
+      success: true,
+      data: { m1, m2, m3 },
+      periods: tidCodes.length,
+      firstPeriod: m3[0]?.period,
+      lastPeriod: m3[m3.length - 1]?.period,
+    });
+  } catch (e) {
+    console.error('Norway error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Server running on port ' + PORT));
