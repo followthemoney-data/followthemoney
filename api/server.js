@@ -13,14 +13,17 @@ const redis = new Redis({
 });
 
 // ─── ECB endpoint ─────────────────────────────────────────────────────────────
-// Fetches M1, M2, M3 for Euro Area. lastNObservations controls how many months back.
+// Fetches ALL available M1/M2/M3 data for Euro Area from Jan 1997 onwards.
+// The ECB back-calculated harmonised data to Jan 1997, before the euro physically launched.
 
 app.get('/api/ecb', async (req, res) => {
   try {
     const series = ['M10', 'M20', 'M30'];
     const results = {};
     for (const s of series) {
-      const url = `https://data-api.ecb.europa.eu/service/data/BSI/M.U2.Y.V.${s}.X.1.U2.2300.Z01.E?format=jsondata&lastNObservations=61`;
+      // startPeriod=1997-01 fetches from the very beginning of available data.
+      // No lastNObservations limit — we want the full history.
+      const url = `https://data-api.ecb.europa.eu/service/data/BSI/M.U2.Y.V.${s}.X.1.U2.2300.Z01.E?format=jsondata&startPeriod=1997-01`;
       const r = await fetch(url);
       if (!r.ok) throw new Error('ECB API ' + r.status);
       const data = await r.json();
@@ -28,11 +31,13 @@ app.get('/api/ecb', async (req, res) => {
       const periods = data.structure.dimensions.observation[0].values;
       const entries = Object.entries(obs)
         .map(([i, v]) => ({ period: periods[+i].id, value: v[0] }))
+        .filter(d => d.value !== null)
         .sort((a, b) => a.period.localeCompare(b.period));
       results[s === 'M10' ? 'm1' : s === 'M20' ? 'm2' : 'm3'] = entries;
     }
     res.json({ success: true, data: results });
   } catch (e) {
+    console.error('ECB error:', e);
     res.status(500).json({ success: false, error: e.message });
   }
 });
@@ -46,11 +51,10 @@ function parseScbData(data) {
   const M3 = '5LLM3a.1E.NEP.V.A';
   const VOL = '000007WQ';
 
-  const dimIds = data.id;       // e.g. ["Penningm", "ContentsCode", "Tid"]
-  const dimSizes = data.size;   // e.g. [3, 4, 60]
+  const dimIds = data.id;
+  const dimSizes = data.size;
   const values = data.value;
 
-  // Build index lookup: for each dim, map code -> position
   const getOrderedCodes = (dimName) => {
     const cat = data.dimension[dimName].category;
     return Object.keys(cat.index).sort((a, b) => cat.index[a] - cat.index[b]);
@@ -66,10 +70,9 @@ function parseScbData(data) {
   const volPos = contentsCodes.indexOf(VOL);
 
   if (m1Pos === -1 || m2Pos === -1 || m3Pos === -1 || volPos === -1) {
-    throw new Error(`Missing expected codes. m1:${m1Pos} m2:${m2Pos} m3:${m3Pos} vol:${volPos}. Available Penningm: ${penningmCodes.join(',')} Contents: ${contentsCodes.join(',')}`);
+    throw new Error(`Missing expected codes. m1:${m1Pos} m2:${m2Pos} m3:${m3Pos} vol:${volPos}`);
   }
 
-  // Generic flat-array index using the actual dimension order from data.id
   function flatIdx(coords) {
     let idx = 0;
     let stride = 1;
@@ -82,10 +85,10 @@ function parseScbData(data) {
 
   const results = [];
   for (let t = 0; t < tidCodes.length; t++) {
-    const rawPeriod = tidCodes[t]; // e.g. "2024M03"
+    const rawPeriod = tidCodes[t];
     const match = rawPeriod.match(/^(\d{4})M(\d{2})$/);
     if (!match) continue;
-    const period = `${match[1]}-${match[2]}`; // "2024-03"
+    const period = `${match[1]}-${match[2]}`;
 
     const m1Val = values[flatIdx({ Penningm: m1Pos, ContentsCode: volPos, Tid: t })];
     const m2Val = values[flatIdx({ Penningm: m2Pos, ContentsCode: volPos, Tid: t })];
@@ -99,7 +102,6 @@ function parseScbData(data) {
 }
 
 // ─── Riksbank live endpoint ───────────────────────────────────────────────────
-// Fetches the latest period from SCB, saves it to Redis, returns history from Redis.
 
 app.get('/api/riksbank', async (req, res) => {
   try {
@@ -108,7 +110,6 @@ app.get('/api/riksbank', async (req, res) => {
     const M3 = '5LLM3a.1E.NEP.V.A';
     const VOL = '000007WQ';
 
-    // Fetch latest 1 period from SCB
     const scbUrl = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data' +
       `?lang=en&outputFormat=json-stat2` +
       `&valueCodes[Penningm]=${encodeURIComponent(M1)},${encodeURIComponent(M2)},${encodeURIComponent(M3)}` +
@@ -122,7 +123,6 @@ app.get('/api/riksbank', async (req, res) => {
     const rows = parseScbData(data);
     const latest = rows.length > 0 ? rows[rows.length - 1] : null;
 
-    // Save latest to Redis
     if (latest) {
       await redis.hset(`riksbank:${latest.period}`, {
         m1: latest.m1,
@@ -131,7 +131,6 @@ app.get('/api/riksbank', async (req, res) => {
       });
     }
 
-    // Read all history from Redis
     const storedKeys = await redis.keys('riksbank:*');
     storedKeys.sort();
     const history = { m1: [], m2: [], m3: [] };
@@ -157,7 +156,6 @@ app.get('/api/riksbank', async (req, res) => {
 });
 
 // ─── Seed endpoint ────────────────────────────────────────────────────────────
-// Fetches ALL historical periods from SCB using GET + wildcard, saves to Redis.
 
 app.get('/api/seed', async (req, res) => {
   try {
@@ -166,35 +164,27 @@ app.get('/api/seed', async (req, res) => {
     const M3 = '5LLM3a.1E.NEP.V.A';
     const VOL = '000007WQ';
 
-    // GET with Tid=* to fetch all available periods
     const scbUrl = 'https://statistikdatabasen.scb.se/api/v2/tables/TAB6541/data' +
       `?lang=en&outputFormat=json-stat2` +
       `&valueCodes[Penningm]=${encodeURIComponent(M1)},${encodeURIComponent(M2)},${encodeURIComponent(M3)}` +
       `&valueCodes[ContentsCode]=${VOL}` +
       `&valueCodes[Tid]=*`;
 
-    console.log('Seed: fetching SCB URL:', scbUrl);
     const r = await fetch(scbUrl);
     if (!r.ok) {
       const errText = await r.text();
       throw new Error(`SCB ${r.status}: ${errText.slice(0, 500)}`);
     }
     const data = await r.json();
-
     const rows = parseScbData(data);
-    console.log(`Seed: parsed ${rows.length} rows from SCB`);
 
     if (rows.length === 0) {
-      return res.json({ success: false, message: 'SCB returned 0 rows. Check the URL or dimension codes.' });
+      return res.json({ success: false, message: 'SCB returned 0 rows.' });
     }
 
     let written = 0;
     for (const row of rows) {
-      await redis.hset(`riksbank:${row.period}`, {
-        m1: row.m1,
-        m2: row.m2,
-        m3: row.m3,
-      });
+      await redis.hset(`riksbank:${row.period}`, { m1: row.m1, m2: row.m2, m3: row.m3 });
       written++;
     }
 
@@ -225,7 +215,6 @@ app.get('/api/wipe', async (req, res) => {
 });
 
 // ─── Debug endpoint ───────────────────────────────────────────────────────────
-// Returns the raw SCB response for the last 3 periods so you can inspect the structure.
 
 app.get('/api/scb-debug', async (req, res) => {
   try {
