@@ -88,10 +88,12 @@
     .show-more-toggle:hover { color: #444; }
     .extra-charts { display: none; }
     .extra-charts.open { display: block; }
-    .card-status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 6px; vertical-align: middle; flex-shrink: 0; }
+    .card-status { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-left: 6px; vertical-align: middle; flex-shrink: 0; cursor: help; position: relative; }
     .card-status.green { background: #259B6B; }
     .card-status.amber { background: #E78A28; }
     .card-status.red   { background: #E8543A; }
+    .card-status::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; font-size: 12px; font-weight: 400; line-height: 1.5; padding: 7px 11px; border-radius: 7px; width: max-content; max-width: 200px; white-space: normal; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 999; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    .card-status:hover::after { opacity: 1; }
     .annotation-tooltip { position: fixed; display: none; background: #1a1a1a; color: white; padding: 10px 14px; border-radius: 8px; font-size: 13px; max-width: 260px; line-height: 1.5; z-index: 1000; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
     .annotation-tooltip strong { display: block; margin-bottom: 4px; }
     .annotation-tooltip p { margin: 0; color: #bbb; font-size: 12px; }
@@ -1045,7 +1047,7 @@
   }
 
   function statusDot(status, title) {
-    return `<span class="card-status ${status}" title="${title}"></span>`;
+    return `<span class="card-status ${status}" data-tip="${title}"></span>`;
   }
   function inflationDot(rate) {
     if (rate > 5 || rate < 0) return statusDot('red',   'High inflation — well above the 2% central bank target (or deflation)');
