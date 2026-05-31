@@ -848,5 +848,93 @@ app.get('/api/cpi-seed', async (req, res) => {
   }
 });
 
+// ─── Interest rates endpoint ──────────────────────────────────────────────────
+// Central bank policy rates from FRED.
+// Series:
+//   USA:         FEDFUNDS           (Federal Funds Rate, monthly avg, 1954-)
+//   ECB:         ECBDFR             (ECB Deposit Facility Rate, 1999-)
+//   Sweden:      IRSTCB01SEM156N    (Riksbank rate, OECD MEI)
+//   Norway:      IRSTCB01NOM156N    (Norges Bank rate, OECD MEI)
+//   Switzerland: IRSTCB01CHM156N    (SNB rate, OECD MEI)
+// Redis keys: rates:snapshot, rates:checked (24h TTL)
+
+async function fetchRatesFromFred() {
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) throw new Error('FRED_API_KEY not set');
+  const BASE = 'https://api.stlouisfed.org/fred/series/observations';
+
+  async function fetchSeries(seriesId) {
+    const url = `${BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=1990-01-01`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`FRED HTTP ${r.status} for ${seriesId}`);
+    const data = await r.json();
+    if (data.error_code) throw new Error(`FRED: ${data.error_message}`);
+    return data.observations
+      .filter(o => o.value !== '.')
+      .map(o => ({ period: o.date.slice(0, 7), value: parseFloat(o.value) }))
+      .sort((a, b) => a.period.localeCompare(b.period));
+  }
+
+  const seriesMap = {
+    usa:         'FEDFUNDS',
+    ecb:         'ECBDFR',
+    riksbank:    'IRSTCB01SEM156N',
+    norway:      'IRSTCB01NOM156N',
+    switzerland: 'IRSTCB01CHM156N',
+  };
+
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const errors = {};
+  const results = {};
+  for (const [key, id] of Object.entries(seriesMap)) {
+    if (Object.keys(results).length > 0) await wait(700);
+    try {
+      results[key] = await fetchSeries(id);
+    } catch (e) {
+      console.error(`Rates fetch failed for ${key} (${id}):`, e.message);
+      results[key] = null;
+      errors[key] = e.message;
+    }
+  }
+  results._errors = errors;
+  return results;
+}
+
+app.get('/api/rates', async (req, res) => {
+  try {
+    const raw = await redis.get('rates:snapshot');
+    let snapshot = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
+    const cached = await redis.get('rates:checked');
+    if (!cached || !snapshot) {
+      snapshot = await fetchRatesFromFred();
+      await redis.set('rates:snapshot', JSON.stringify(snapshot));
+      await redis.set('rates:checked', '1', { ex: 86400 });
+    }
+    res.json({ success: true, data: snapshot, source: cached && snapshot ? 'cache' : 'live' });
+  } catch (e) {
+    console.error('Rates error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/api/rates-seed', async (req, res) => {
+  try {
+    const snapshot = await fetchRatesFromFred();
+    await redis.set('rates:snapshot', JSON.stringify(snapshot));
+    await redis.set('rates:checked', '1', { ex: 86400 });
+    const { _errors, ...data } = snapshot;
+    const summary = Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, v
+        ? { periods: v.length, first: v[0]?.period, last: v[v.length - 1]?.period }
+        : { failed: true, error: _errors?.[k] || 'unknown' }
+      ])
+    );
+    res.json({ success: true, message: 'Rates seed complete.', summary });
+  } catch (e) {
+    console.error('Rates seed error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Server running on port ' + PORT));

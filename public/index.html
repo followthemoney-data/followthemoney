@@ -179,6 +179,10 @@
       <div class="chart-section-filter" id="ecb-debt-filter">12 months</div>
       <div class="chart-wrap"><canvas id="ecb-debt-chart"></canvas></div>
       <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      <div class="chart-section-title" id="ecb-rate-title">Central Bank Policy Rate</div>
+      <div class="chart-section-filter" id="ecb-rate-filter">12 months</div>
+      <div class="chart-wrap"><canvas id="ecb-rate-chart"></canvas></div>
+      <div class="source">ECB Deposit Facility Rate via FRED (ECBDFR)</div>
     </div>
   </div>
 
@@ -212,6 +216,10 @@
       <div class="chart-section-filter" id="riksbank-debt-filter">12 months</div>
       <div class="chart-wrap"><canvas id="riksbank-debt-chart"></canvas></div>
       <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      <div class="chart-section-title" id="riksbank-rate-title">Central Bank Policy Rate</div>
+      <div class="chart-section-filter" id="riksbank-rate-filter">12 months</div>
+      <div class="chart-wrap"><canvas id="riksbank-rate-chart"></canvas></div>
+      <div class="source">Riksbank Policy Rate via FRED / OECD (IRSTCB01SEM156N)</div>
     </div>
   </div>
 
@@ -245,8 +253,12 @@
       <div class="chart-section-filter" id="norway-debt-filter">12 months</div>
       <div class="chart-wrap"><canvas id="norway-debt-chart"></canvas></div>
       <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      <div class="chart-section-title" id="norway-rate-title">Central Bank Policy Rate</div>
+      <div class="chart-section-filter" id="norway-rate-filter">12 months</div>
+      <div class="chart-wrap"><canvas id="norway-rate-chart"></canvas></div>
+      <div class="source">Norges Bank Policy Rate via FRED / OECD (IRSTCB01NOM156N)</div>
     </div>
-</div>
+  </div>
   <!-- USA view -->
   <div id="usa-view" style="display:none">
     <div class="country-summary" id="usa-summary"></div>
@@ -277,6 +289,10 @@
       <div class="chart-section-filter" id="usa-debt-filter">12 months</div>
       <div class="chart-wrap"><canvas id="usa-debt-chart"></canvas></div>
       <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      <div class="chart-section-title" id="usa-rate-title">Central Bank Policy Rate</div>
+      <div class="chart-section-filter" id="usa-rate-filter">12 months</div>
+      <div class="chart-wrap"><canvas id="usa-rate-chart"></canvas></div>
+      <div class="source">Federal Funds Rate via FRED (FEDFUNDS)</div>
     </div>
   </div>
 
@@ -310,6 +326,10 @@
       <div class="chart-section-filter" id="switzerland-debt-filter">12 months</div>
       <div class="chart-wrap"><canvas id="switzerland-debt-chart"></canvas></div>
       <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      <div class="chart-section-title" id="switzerland-rate-title">Central Bank Policy Rate</div>
+      <div class="chart-section-filter" id="switzerland-rate-filter">12 months</div>
+      <div class="chart-wrap"><canvas id="switzerland-rate-chart"></canvas></div>
+      <div class="source">SNB Policy Rate via FRED / OECD (IRSTCB01CHM156N)</div>
     </div>
   </div>
 
@@ -999,6 +1019,7 @@
     renderOverlayChart('ecb-chart', buildOverlayData(ecbFullData.m2, cpiData.ecb, ecbFilter), 'M2 (EUR)', ecbChart, v => ecbChart = v);
     if (gdpData?.ecb) renderGdpChart('ecb-gdp-chart', gdpData.ecb, 'ecb-gdp-title', 'Euro Area', ecbFilter, ecbGdpChart, v => ecbGdpChart = v);
     if (debtData?.ecb?.series) renderDebtRatioChart('ecb-debt-chart', debtData.ecb.series, 'ecb-debt-title', 'Euro Area', ecbFilter, ecbDebtChart, v => ecbDebtChart = v);
+    if (ratesData?.ecb)        renderRateChart('ecb-rate-chart', ratesData.ecb, 'ecb-rate-title', 'Euro Area', ecbFilter, ecbRateChart, v => ecbRateChart = v);
   }
   function redrawRiks() {
     if (!riksFullData || !cpiData) return;
@@ -1006,6 +1027,7 @@
     renderOverlayChart('riksbank-chart', buildOverlayData(riksFullData.m2, cpiData.riksbank, riksFilter), 'M2 (SEK)', riksChart, v => riksChart = v);
     if (gdpData?.riksbank) renderGdpChart('riksbank-gdp-chart', gdpData.riksbank, 'riksbank-gdp-title', 'Sweden', riksFilter, riksGdpChart, v => riksGdpChart = v);
     if (debtData?.riksbank?.series) renderDebtRatioChart('riksbank-debt-chart', debtData.riksbank.series, 'riksbank-debt-title', 'Sweden', riksFilter, riksDebtChart, v => riksDebtChart = v);
+    if (ratesData?.riksbank)        renderRateChart('riksbank-rate-chart', ratesData.riksbank, 'riksbank-rate-title', 'Sweden', riksFilter, riksRateChart, v => riksRateChart = v);
   }
   function redrawNorway() {
     if (!norwayFullData || !cpiData) return;
@@ -1013,6 +1035,7 @@
     renderOverlayChart('norway-chart', buildOverlayData(norwayFullData.m2, cpiData.norway, norwayFilter), 'M2 (NOK)', norwayChart, v => norwayChart = v);
     if (gdpData?.norway) renderGdpChart('norway-gdp-chart', gdpData.norway, 'norway-gdp-title', 'Norway', norwayFilter, norwayGdpChart, v => norwayGdpChart = v);
     if (debtData?.norway?.series) renderDebtRatioChart('norway-debt-chart', debtData.norway.series, 'norway-debt-title', 'Norway', norwayFilter, norwayDebtChart, v => norwayDebtChart = v);
+    if (ratesData?.norway)        renderRateChart('norway-rate-chart', ratesData.norway, 'norway-rate-title', 'Norway', norwayFilter, norwayRateChart, v => norwayRateChart = v);
   }
   function redrawSwiss() {
     if (!swissFullData || !cpiData) return;
@@ -1020,6 +1043,7 @@
     renderOverlayChart('switzerland-chart', buildOverlayData(swissFullData.m2, cpiData.switzerland, swissFilter), 'M2 (CHF)', swissChart, v => swissChart = v);
     if (gdpData?.switzerland) renderGdpChart('switzerland-gdp-chart', gdpData.switzerland, 'switzerland-gdp-title', 'Switzerland', swissFilter, swissGdpChart, v => swissGdpChart = v);
     if (debtData?.switzerland?.series) renderDebtRatioChart('switzerland-debt-chart', debtData.switzerland.series, 'switzerland-debt-title', 'Switzerland', swissFilter, swissDebtChart, v => swissDebtChart = v);
+    if (ratesData?.switzerland)        renderRateChart('switzerland-rate-chart', ratesData.switzerland, 'switzerland-rate-title', 'Switzerland', swissFilter, swissRateChart, v => swissRateChart = v);
   }
   function redrawUsa() {
     if (!usaFullData || !cpiData) return;
@@ -1027,6 +1051,7 @@
     renderOverlayChart('usa-chart', buildOverlayData(usaFullData.m2, cpiData.usa, usaFilter), 'M2 (USD)', usaChart, v => usaChart = v);
     if (gdpData?.usa) renderGdpChart('usa-gdp-chart', gdpData.usa, 'usa-gdp-title', 'USA', usaFilter, usaGdpChart, v => usaGdpChart = v);
     if (debtData?.usa?.series) renderDebtRatioChart('usa-debt-chart', debtData.usa.series, 'usa-debt-title', 'USA', usaFilter, usaDebtChart, v => usaDebtChart = v);
+    if (ratesData?.usa)        renderRateChart('usa-rate-chart', ratesData.usa, 'usa-rate-title', 'USA', usaFilter, usaRateChart, v => usaRateChart = v);
   }
 
   // ── Data loaders ───────────────────────────────────────────────────────────
@@ -1120,6 +1145,8 @@
   let gdpData = null;
   let ecbGdpChart = null, riksGdpChart = null, norwayGdpChart = null, swissGdpChart = null, usaGdpChart = null;
   let ecbDebtChart = null, riksDebtChart = null, norwayDebtChart = null, swissDebtChart = null, usaDebtChart = null;
+  let ratesData = null;
+  let ecbRateChart = null, riksRateChart = null, norwayRateChart = null, swissRateChart = null, usaRateChart = null;
 
   function applyDebtFilter(series, filter) {
     if (!series || !series.length) return [];
@@ -1199,6 +1226,84 @@
     setter(inst);
   }
 
+  function renderRateCard(containerId, rateSeries) {
+    const container = document.getElementById(containerId);
+    if (!container || !rateSeries || !rateSeries.length) return;
+    const existing = container.querySelector('.rate-card');
+    if (existing) existing.remove();
+    const latest = rateSeries[rateSeries.length - 1];
+    const prev   = rateSeries.length > 1 ? rateSeries[rateSeries.length - 2] : null;
+    const change = prev ? +(latest.value - prev.value).toFixed(2) : 0;
+    const card = document.createElement('div');
+    card.className = 'card rate-card';
+    card.innerHTML = `
+      <div class="card-label">Policy Rate</div>
+      <div class="card-desc">The interest rate set by the central bank — its main tool for controlling inflation. When inflation rises, central banks raise rates to make borrowing more expensive and slow spending. When the economy weakens, they cut rates to stimulate growth. This rate directly shapes mortgage costs, savings returns, and the price of all borrowing in the economy.</div>
+      <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
+      <div class="card-value">${latest.value.toFixed(2)}%</div>
+      <div class="card-unit">Annual · ${latest.period}</div>
+      ${change !== 0 ? `<div class="card-growth ${change > 0 ? 'neg' : 'pos'}">${change > 0 ? '▲' : '▼'} ${Math.abs(change).toFixed(2)}pp vs prev month</div>` : ''}
+    `;
+    container.appendChild(card);
+  }
+
+  function renderRateChart(canvasId, series, titleId, country, filter, existing, setter) {
+    if (!series || !series.length) return;
+    if (existing) existing.destroy();
+    const display = applyFilter(series, filter);
+    if (!display.length) return;
+    const filterEl = document.getElementById(titleId.replace('-title', '-filter'));
+    if (filterEl) filterEl.textContent = filterLabel(filter);
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    const inst = new Chart(ctx, {
+      type: 'line',
+      plugins: [makeAnnotationPlugin()],
+      data: {
+        labels: display.map(d => d.period),
+        datasets: [{
+          label: 'Policy Rate',
+          data: display.map(d => d.value),
+          borderColor: '#357AC6',
+          backgroundColor: '#357AC608',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+          pointHoverBackgroundColor: '#357AC6',
+          pointHoverBorderWidth: 0,
+          fill: true,
+          tension: 0,
+          stepped: 'before',
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => 'Policy Rate: ' + c.parsed.y.toFixed(2) + '%' } }
+        },
+        scales: {
+          x: { ticks: { font: { size: 10 }, maxRotation: 45, maxTicksLimit: 12 } },
+          y: {
+            ticks: { font: { size: 11 }, callback: v => v.toFixed(1) + '%' },
+            grid: { color: c => c.tick.value === 0 ? '#aaa' : '#eee', lineWidth: c => c.tick.value === 0 ? 2 : 1 }
+          }
+        }
+      }
+    });
+    setter(inst);
+  }
+
+  function tryRenderRates() {
+    if (!ratesData) return;
+    if (ratesData.ecb)         { renderRateCard('ecb-pp2',         ratesData.ecb);         renderRateChart('ecb-rate-chart',         ratesData.ecb,         'ecb-rate-title',         'Euro Area',   ecbFilter,    ecbRateChart,    v => ecbRateChart    = v); }
+    if (ratesData.riksbank)    { renderRateCard('riksbank-pp2',    ratesData.riksbank);    renderRateChart('riksbank-rate-chart',    ratesData.riksbank,    'riksbank-rate-title',    'Sweden',      riksFilter,   riksRateChart,   v => riksRateChart   = v); }
+    if (ratesData.norway)      { renderRateCard('norway-pp2',      ratesData.norway);      renderRateChart('norway-rate-chart',      ratesData.norway,      'norway-rate-title',      'Norway',      norwayFilter, norwayRateChart, v => norwayRateChart = v); }
+    if (ratesData.switzerland) { renderRateCard('switzerland-pp2', ratesData.switzerland); renderRateChart('switzerland-rate-chart', ratesData.switzerland, 'switzerland-rate-title', 'Switzerland', swissFilter,  swissRateChart,  v => swissRateChart  = v); }
+    if (ratesData.usa)         { renderRateCard('usa-pp2',         ratesData.usa);         renderRateChart('usa-rate-chart',         ratesData.usa,         'usa-rate-title',         'USA',         usaFilter,    usaRateChart,    v => usaRateChart    = v); }
+  }
+
   function tryRenderAllGdp() {
     if (!gdpData) return;
     renderGdpChart('ecb-gdp-chart',         gdpData.ecb,         'ecb-gdp-title',         'Euro Area',   ecbFilter,    ecbGdpChart,    v => ecbGdpChart    = v);
@@ -1225,9 +1330,22 @@
     }
   }
 
+  async function loadRates() {
+    try {
+      const r = await fetch(API_BASE + '/api/rates');
+      const json = await r.json();
+      if (!json.success) throw new Error(json.error);
+      ratesData = json.data;
+      tryRenderRates();
+    } catch(e) {
+      console.error('Rates error:', e);
+    }
+  }
+
   loadCPI();
   loadGDP();
   loadDebt();
+  loadRates();
   loadECB();
   loadRiksbank();
   loadNorway();
