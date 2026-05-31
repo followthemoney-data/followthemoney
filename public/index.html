@@ -37,6 +37,12 @@
     .yf.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
     .yf:hover { border-color: #aaa; color: #444; }
     .chart-wrap { position: relative; height: 250px; }
+    .chart-legend { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 500; color: #333; user-select: none; transition: opacity 0.15s; }
+    .legend-item.disabled { opacity: 0.4; }
+    .legend-box { width: 24px; height: 24px; border-radius: 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .legend-box::after { content: '✓'; color: white; font-size: 14px; font-weight: 800; line-height: 1; }
+    .legend-item.disabled .legend-box::after { content: ''; }
     .source { font-size: 12px; color: #bbb; text-align: right; margin-top: 0.5rem; }
     .updated { font-size: 12px; color: #bbb; margin-bottom: 1.5rem; }
     .loading { text-align: center; padding: 3rem; color: #999; font-size: 14px; }
@@ -451,65 +457,57 @@
   function renderOverlayChart(canvasId, overlayData, moneyLabel, existing, setter) {
     if (!overlayData) return;
     if (existing) existing.destroy();
-    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    const canvas = document.getElementById(canvasId);
+    const chartWrap = canvas.closest('.chart-wrap');
     const showDots = overlayData.periods.length <= 36;
-    const inst = new Chart(ctx, {
+
+    const inst = new Chart(canvas.getContext('2d'), {
       type: 'line',
       data: {
         labels: overlayData.periods,
         datasets: [
-          {
-            label: moneyLabel,
-            data: overlayData.moneyIndexed,
-            borderColor: '#378ADD',
-            backgroundColor: '#378ADD10',
-            borderWidth: 2,
-            pointRadius: showDots ? 3 : 0,
-            pointHoverRadius: 5,
-            fill: false,
-            tension: 0.3,
-            yAxisID: 'yMoney',
-          },
-          {
-            label: 'Purchasing Power',
-            data: overlayData.purchasingPower,
-            borderColor: '#E8543A',
-            backgroundColor: '#E8543A10',
-            borderWidth: 2,
-            pointRadius: showDots ? 3 : 0,
-            pointHoverRadius: 5,
-            fill: false,
-            tension: 0.3,
-            yAxisID: 'yPower',
-          }
+          { label: moneyLabel,         data: overlayData.moneyIndexed,   borderColor: '#378ADD', backgroundColor: '#378ADD10', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yMoney' },
+          { label: 'Purchasing Power', data: overlayData.purchasingPower, borderColor: '#E8543A', backgroundColor: '#E8543A10', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yPower' }
         ]
       },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
+          legend: { display: false },
           tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(1) } }
         },
         scales: {
           x: { ticks: { font: { size: 11 }, maxRotation: 45, maxTicksLimit: 12 } },
-          yMoney: {
-            type: 'linear',
-            position: 'left',
-            ticks: { font: { size: 11 }, callback: v => v.toFixed(0) },
-            title: { display: true, text: 'Money Supply (2000 = 100)', font: { size: 10 }, color: '#378ADD' }
-          },
-          yPower: {
-            type: 'linear',
-            position: 'right',
-            grid: { drawOnChartArea: false },
-            ticks: { font: { size: 11 }, callback: v => v.toFixed(0) },
-            title: { display: true, text: 'Purchasing Power (2000 = 100)', font: { size: 10 }, color: '#E8543A' }
-          }
+          yMoney: { type: 'linear', position: 'left',  ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: true, text: 'Money Supply (2000 = 100)',    font: { size: 10 }, color: '#378ADD' } },
+          yPower: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: true, text: 'Purchasing Power (2000 = 100)', font: { size: 10 }, color: '#E8543A' } }
         }
       }
     });
+
+    // Custom HTML legend
+    let legendEl = document.getElementById(canvasId + '-legend');
+    if (!legendEl) {
+      legendEl = document.createElement('div');
+      legendEl.id = canvasId + '-legend';
+      legendEl.className = 'chart-legend';
+      chartWrap.parentNode.insertBefore(legendEl, chartWrap);
+    }
+    legendEl.innerHTML = '';
+    [{ label: moneyLabel, color: '#378ADD', i: 0 }, { label: 'Purchasing Power', color: '#E8543A', i: 1 }].forEach(({ label, color, i }) => {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      item.innerHTML = `<div class="legend-box" style="background:${color}"></div><span>${label}</span>`;
+      item.addEventListener('click', () => {
+        const meta = inst.getDatasetMeta(i);
+        meta.hidden = !meta.hidden;
+        inst.update();
+        item.classList.toggle('disabled', meta.hidden);
+      });
+      legendEl.appendChild(item);
+    });
+
     setter(inst);
   }
 
