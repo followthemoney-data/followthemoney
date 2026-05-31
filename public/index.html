@@ -52,6 +52,8 @@
     .legend-item.disabled .legend-box::after { content: ''; }
     .source { font-size: 12px; color: #bbb; text-align: right; margin-top: 0.5rem; }
     .updated { font-size: 12px; color: #bbb; margin-bottom: 1.5rem; }
+    .country-summary { background: white; border-radius: 12px; padding: 1.25rem 1.5rem; border: 1px solid #eee; margin-bottom: 1.5rem; font-size: 15px; line-height: 1.7; color: #555; }
+    .country-summary strong { color: #1a1a1a; }
     .loading { text-align: center; padding: 3rem; color: #999; font-size: 16px; }
     .explainer { background: white; border-radius: 12px; padding: 1.5rem; border: 1px solid #eee; margin-bottom: 1.5rem; }
     .explainer h2 { font-size: 16px; font-weight: 600; margin-bottom: 0.75rem; }
@@ -141,6 +143,7 @@
 
   <!-- ECB view -->
   <div id="ecb-view">
+    <div class="country-summary" id="ecb-summary"></div>
     <div id="ecb-cards" class="cards"><div class="loading">Fetching ECB data...</div></div>
     <div id="ecb-pp" class="pp-row"></div>
     <div id="ecb-pp2" class="pp-row"></div>
@@ -173,6 +176,7 @@
 
   <!-- Sweden view -->
   <div id="riksbank-view" style="display:none">
+    <div class="country-summary" id="riksbank-summary"></div>
     <div id="riksbank-cards" class="cards"><div class="loading">Fetching Riksbank data...</div></div>
     <div id="riksbank-pp" class="pp-row"></div>
     <div id="riksbank-pp2" class="pp-row"></div>
@@ -205,6 +209,7 @@
 
   <!-- Norway view -->
   <div id="norway-view" style="display:none">
+    <div class="country-summary" id="norway-summary"></div>
     <div id="norway-cards" class="cards"><div class="loading">Fetching SSB data...</div></div>
     <div id="norway-pp" class="pp-row"></div>
     <div id="norway-pp2" class="pp-row"></div>
@@ -236,6 +241,7 @@
 </div>
   <!-- USA view -->
   <div id="usa-view" style="display:none">
+    <div class="country-summary" id="usa-summary"></div>
     <div id="usa-cards" class="cards"><div class="loading">Fetching Fed data...</div></div>
     <div id="usa-pp" class="pp-row"></div>
     <div id="usa-pp2" class="pp-row"></div>
@@ -268,6 +274,7 @@
 
   <!-- Switzerland view -->
   <div id="switzerland-view" style="display:none">
+    <div class="country-summary" id="switzerland-summary"></div>
     <div id="switzerland-cards" class="cards"><div class="loading">Fetching SNB data...</div></div>
     <div id="switzerland-pp" class="pp-row"></div>
     <div id="switzerland-pp2" class="pp-row"></div>
@@ -918,13 +925,63 @@
     container.appendChild(card);
   }
 
+  function renderCountrySummary(containerId, bank, moneySeries, cpiSeries) {
+    const el = document.getElementById(containerId);
+    if (!el || !moneySeries || !moneySeries.length) return;
+
+    const baseMoneyEntry = moneySeries.find(d => d.period === BASE_PERIOD) || moneySeries[0];
+    const latestMoney = moneySeries[moneySeries.length - 1];
+    const mult = latestMoney.value / baseMoneyEntry.value;
+    const baseYear = baseMoneyEntry.period.slice(0, 4);
+
+    let multText;
+    if      (mult >= 4)   multText = `<strong>${mult.toFixed(1)}× larger</strong>`;
+    else if (mult >= 3.5) multText = '<strong>nearly 4× larger</strong>';
+    else if (mult >= 3)   multText = '<strong>more than tripled</strong>';
+    else if (mult >= 2.5) multText = '<strong>nearly tripled</strong>';
+    else if (mult >= 2)   multText = '<strong>more than doubled</strong>';
+    else                  multText = `<strong>${Math.round((mult - 1) * 100)}% larger</strong>`;
+
+    const BANK_NAMES = {
+      ecb: 'The European Central Bank', riksbank: "Sweden's Riksbank",
+      norway: "Norway's central bank",  switzerland: 'The Swiss National Bank',
+      usa: 'The US Federal Reserve',
+    };
+    const CURRENCIES = {
+      ecb: 'euro', riksbank: 'Swedish krona', norway: 'Norwegian krone',
+      switzerland: 'Swiss franc', usa: 'US dollar',
+    };
+
+    const parts = [`Since ${baseYear}, ${BANK_NAMES[bank]} has made the ${CURRENCIES[bank]} money supply ${multText}.`];
+
+    if (cpiSeries && cpiSeries.length) {
+      const baseCpi = cpiSeries.find(d => d.period === BASE_PERIOD) || cpiSeries[0];
+      const latestCpi = cpiSeries[cpiSeries.length - 1];
+      const priceRise = Math.round((latestCpi.value / baseCpi.value - 1) * 100);
+      const ppLoss    = Math.round(100 - (baseCpi.value / latestCpi.value) * 100);
+      if (ppLoss > 0) {
+        parts.push(`Prices are up <strong>${priceRise}%</strong> since then — so your money buys <strong>${ppLoss}% less</strong> than it used to.`);
+      }
+    }
+
+    if (cpiSeries && cpiSeries.length >= 13) {
+      const l  = cpiSeries[cpiSeries.length - 1];
+      const ya = cpiSeries[cpiSeries.length - 13];
+      const inf = ((l.value - ya.value) / ya.value * 100).toFixed(1);
+      const rel = parseFloat(inf) > 2.5 ? 'above' : parseFloat(inf) < 1.5 ? 'below' : 'close to';
+      parts.push(`Inflation is currently running at <strong>${inf}%</strong> per year — ${rel} the 2% target.`);
+    }
+
+    el.innerHTML = parts.join(' ');
+  }
+
   function tryRenderAll() {
     if (!cpiData) return;
-    if (ecbFullData)    { buildYearDropdown(ecbFullData.m2,    'ecb-year-select');         buildBrush('ecb',         ecbFullData.m2);    redrawEcb();    renderPurchasingPowerCard('ecb-pp',         cpiData.ecb);         renderInflationCard('ecb-pp',         cpiData.ecb);         if (gdpData?.ecb)         renderGdpCard('ecb-pp2',         gdpData.ecb);         }
-    if (riksFullData)   { buildYearDropdown(riksFullData.m2,   'riksbank-year-select');    buildBrush('riksbank',    riksFullData.m2);   redrawRiks();   renderPurchasingPowerCard('riksbank-pp',     cpiData.riksbank);    renderInflationCard('riksbank-pp',     cpiData.riksbank);    if (gdpData?.riksbank)    renderGdpCard('riksbank-pp2',     gdpData.riksbank);    }
-    if (norwayFullData) { buildYearDropdown(norwayFullData.m2, 'norway-year-select');      buildBrush('norway',      norwayFullData.m2); redrawNorway(); renderPurchasingPowerCard('norway-pp',       cpiData.norway);      renderInflationCard('norway-pp',       cpiData.norway);      if (gdpData?.norway)      renderGdpCard('norway-pp2',       gdpData.norway);      }
-    if (swissFullData)  { buildYearDropdown(swissFullData.m2,  'switzerland-year-select'); buildBrush('switzerland', swissFullData.m2);  redrawSwiss();  renderPurchasingPowerCard('switzerland-pp',  cpiData.switzerland); renderInflationCard('switzerland-pp',  cpiData.switzerland); if (gdpData?.switzerland) renderGdpCard('switzerland-pp2',  gdpData.switzerland); }
-    if (usaFullData)    { buildYearDropdown(usaFullData.m2,    'usa-year-select');         buildBrush('usa',         usaFullData.m2);    redrawUsa();    renderPurchasingPowerCard('usa-pp',          cpiData.usa);         renderInflationCard('usa-pp',          cpiData.usa);         if (gdpData?.usa)         renderGdpCard('usa-pp2',          gdpData.usa);         }
+    if (ecbFullData)    { buildYearDropdown(ecbFullData.m2,    'ecb-year-select');         buildBrush('ecb',         ecbFullData.m2);    redrawEcb();    renderPurchasingPowerCard('ecb-pp',         cpiData.ecb);         renderInflationCard('ecb-pp',         cpiData.ecb);         if (gdpData?.ecb)         renderGdpCard('ecb-pp2',         gdpData.ecb);         renderCountrySummary('ecb-summary',         'ecb',         ecbFullData.m2,    cpiData.ecb);         }
+    if (riksFullData)   { buildYearDropdown(riksFullData.m2,   'riksbank-year-select');    buildBrush('riksbank',    riksFullData.m2);   redrawRiks();   renderPurchasingPowerCard('riksbank-pp',     cpiData.riksbank);    renderInflationCard('riksbank-pp',     cpiData.riksbank);    if (gdpData?.riksbank)    renderGdpCard('riksbank-pp2',     gdpData.riksbank);    renderCountrySummary('riksbank-summary',    'riksbank',    riksFullData.m2,   cpiData.riksbank);    }
+    if (norwayFullData) { buildYearDropdown(norwayFullData.m2, 'norway-year-select');      buildBrush('norway',      norwayFullData.m2); redrawNorway(); renderPurchasingPowerCard('norway-pp',       cpiData.norway);      renderInflationCard('norway-pp',       cpiData.norway);      if (gdpData?.norway)      renderGdpCard('norway-pp2',       gdpData.norway);      renderCountrySummary('norway-summary',      'norway',      norwayFullData.m2, cpiData.norway);      }
+    if (swissFullData)  { buildYearDropdown(swissFullData.m2,  'switzerland-year-select'); buildBrush('switzerland', swissFullData.m2);  redrawSwiss();  renderPurchasingPowerCard('switzerland-pp',  cpiData.switzerland); renderInflationCard('switzerland-pp',  cpiData.switzerland); if (gdpData?.switzerland) renderGdpCard('switzerland-pp2',  gdpData.switzerland); renderCountrySummary('switzerland-summary', 'switzerland', swissFullData.m2,  cpiData.switzerland); }
+    if (usaFullData)    { buildYearDropdown(usaFullData.m2,    'usa-year-select');         buildBrush('usa',         usaFullData.m2);    redrawUsa();    renderPurchasingPowerCard('usa-pp',          cpiData.usa);         renderInflationCard('usa-pp',          cpiData.usa);         if (gdpData?.usa)         renderGdpCard('usa-pp2',          gdpData.usa);         renderCountrySummary('usa-summary',         'usa',         usaFullData.m2,    cpiData.usa);         }
     updateHeroAmount();
   }
 
