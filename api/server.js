@@ -550,19 +550,18 @@ async function fetchCpiFromFred() {
     switzerland: 'CP0000CHM086NEST',
   };
 
+  // Sequential fetching — FRED rate-limits concurrent requests (HTTP 429)
   const errors = {};
   const results = {};
-  await Promise.all(
-    Object.entries(seriesMap).map(async ([key, id]) => {
-      try {
-        results[key] = await fetchSeries(id);
-      } catch (e) {
-        console.error(`CPI fetch failed for ${key} (${id}):`, e.message);
-        results[key] = null;
-        errors[key] = e.message;
-      }
-    })
-  );
+  for (const [key, id] of Object.entries(seriesMap)) {
+    try {
+      results[key] = await fetchSeries(id);
+    } catch (e) {
+      console.error(`CPI fetch failed for ${key} (${id}):`, e.message);
+      results[key] = null;
+      errors[key] = e.message;
+    }
+  }
   results._errors = errors;
   return results;
 }
