@@ -99,6 +99,7 @@
     .annotation-tooltip p { margin: 0; color: #bbb; font-size: 12px; }
     .money-cols { display: flex; gap: 8px; margin: 10px 0 4px; }
     .money-col { flex: 1; min-width: 0; }
+    .money-col-desc { font-size: 11px; color: #888; line-height: 1.4; margin-bottom: 8px; }
     .money-col-label { font-size: 11px; font-weight: 700; color: #888; margin-bottom: 2px; }
     .money-col-value { font-size: 17px; font-weight: 600; color: #1a1a1a; white-space: nowrap; }
     .money-col-growth { font-size: 11px; margin-top: 2px; }
@@ -801,8 +802,9 @@
     const container = document.getElementById(containerId);
     const { m1, m2, m3 } = data;
 
-    function colHTML(label, series) {
-      if (!series || !series.length) return `<div class="money-col"><div class="money-col-label">${label}</div><div class="money-col-value">—</div></div>`;
+    function colHTML(label, key, series) {
+      const desc = CARD_DESCS[key] || '';
+      if (!series || !series.length) return `<div class="money-col"><div class="money-col-desc">${desc}</div><div class="money-col-label">${label}</div><div class="money-col-value">—</div></div>`;
       const latest = series[series.length - 1];
       const val = (latest.value / divisor).toFixed(1);
       let growth = '';
@@ -812,6 +814,7 @@
         growth = `<div class="money-col-growth ${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '▲' : '▼'} ${Math.abs(mom).toFixed(2)}%</div>`;
       }
       return `<div class="money-col">
+        <div class="money-col-desc">${desc}</div>
         <div class="money-col-label">${label}</div>
         <div class="money-col-value">${val}T</div>
         ${growth}
@@ -821,12 +824,10 @@
     const latestPeriod = (m2 || m1 || [])[((m2 || m1 || []).length || 1) - 1]?.period || '';
     container.innerHTML = `<div class="card">
       <div class="card-label">Money Supply</div>
-      <div class="card-desc">Three measures of money in circulation. M1 is physical cash and everyday bank accounts — what you can spend right now. M2 adds savings and short-term deposits and is the most-watched measure: when it grows faster than the economy, inflation tends to follow. M3 is the broadest, adding large institutional deposits — a sustained rise signals long-term pressure.</div>
-      <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
       <div class="money-cols">
-        ${colHTML('M1', m1)}
-        ${colHTML('M2', m2)}
-        ${colHTML('M3', m3)}
+        ${colHTML('M1', 'm1', m1)}
+        ${colHTML('M2', 'm2', m2)}
+        ${colHTML('M3', 'm3', m3)}
       </div>
       <div class="card-unit">${currency} · ${latestPeriod}</div>
     </div>`;
