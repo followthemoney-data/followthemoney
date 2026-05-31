@@ -528,13 +528,35 @@
 
   // ── Redraw helpers ─────────────────────────────────────────────────────────
 
+  function renderPurchasingPowerCard(containerId, cpiSeries) {
+    const container = document.getElementById(containerId);
+    if (!container || !cpiSeries || !cpiSeries.length) return;
+    const existing = container.querySelector('.pp-card');
+    if (existing) existing.remove();
+
+    const baseCpi = cpiSeries.find(d => d.period === BASE_PERIOD) || cpiSeries[0];
+    const ppSeries = cpiSeries.map(d => ({ period: d.period, value: +((baseCpi.value / d.value) * 100).toFixed(2) }));
+    const latest = ppSeries[ppSeries.length - 1];
+
+    const card = document.createElement('div');
+    card.className = 'card pp-card';
+    card.innerHTML = `
+      <div class="card-label">Purchasing Power</div>
+      <div class="card-desc">How much your currency can actually buy, compared to ${baseCpi.period.slice(0,4)}. Calculated by inverting CPI — when money supply grows faster than the economy, prices rise and this number falls.</div>
+      <div class="card-value">${latest.value.toFixed(1)}</div>
+      <div class="card-unit">Index · ${baseCpi.period.slice(0,4)} = 100 · ${latest.period}</div>
+      ${growthHTML(ppSeries)}
+    `;
+    container.appendChild(card);
+  }
+
   function tryRenderAll() {
     if (!cpiData) return;
-    if (ecbFullData)    { buildYearButtons(ecbFullData.m2,    'ecb-years',          'setEcbYear');   redrawEcb();     }
-    if (riksFullData)   { buildYearButtons(riksFullData.m2,   'riksbank-years',      'setRiksYear');  redrawRiks();    }
-    if (norwayFullData) { buildYearButtons(norwayFullData.m2, 'norway-years',        'setNorwayYear');redrawNorway();  }
-    if (swissFullData)  { buildYearButtons(swissFullData.m2,  'switzerland-years',   'setSwissYear'); redrawSwiss();   }
-    if (usaFullData)    { buildYearButtons(usaFullData.m2,    'usa-years',           'setUsaYear');   redrawUsa();     }
+    if (ecbFullData)    { buildYearButtons(ecbFullData.m2,    'ecb-years',          'setEcbYear');   redrawEcb();    renderPurchasingPowerCard('ecb-cards',         cpiData.ecb);         }
+    if (riksFullData)   { buildYearButtons(riksFullData.m2,   'riksbank-years',      'setRiksYear');  redrawRiks();   renderPurchasingPowerCard('riksbank-cards',     cpiData.riksbank);    }
+    if (norwayFullData) { buildYearButtons(norwayFullData.m2, 'norway-years',        'setNorwayYear');redrawNorway(); renderPurchasingPowerCard('norway-cards',       cpiData.norway);      }
+    if (swissFullData)  { buildYearButtons(swissFullData.m2,  'switzerland-years',   'setSwissYear'); redrawSwiss();  renderPurchasingPowerCard('switzerland-cards',  cpiData.switzerland); }
+    if (usaFullData)    { buildYearButtons(usaFullData.m2,    'usa-years',           'setUsaYear');   redrawUsa();    renderPurchasingPowerCard('usa-cards',          cpiData.usa);         }
     updateHeroAmount();
   }
 
