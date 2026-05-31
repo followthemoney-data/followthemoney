@@ -588,6 +588,19 @@ app.get('/api/cpi', async (req, res) => {
   }
 });
 
+app.get('/api/cpi-test', async (req, res) => {
+  const seriesId = req.query.s || 'CPIAUCSL';
+  const apiKey = process.env.FRED_API_KEY;
+  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=2020-01-01`;
+  try {
+    const r = await fetch(url);
+    const text = await r.text();
+    res.json({ seriesId, status: r.status, body: JSON.parse(text) });
+  } catch (e) {
+    res.json({ seriesId, error: e.message });
+  }
+});
+
 app.get('/api/cpi-seed', async (req, res) => {
   try {
     const snapshot = await fetchCpiFromFred();
