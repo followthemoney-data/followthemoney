@@ -29,8 +29,8 @@
     .card-value { font-size: 28px; font-weight: 600; color: #1a1a1a; }
     .card-unit { font-size: 12px; color: #999; margin-top: 4px; }
     .card-growth { font-size: 12px; margin-top: 8px; }
-    .pos { color: #1D9E75; }
-    .neg { color: #D85A30; }
+    .pos { color: #259B6B; }
+    .neg { color: #E8543A; }
     .chart-container { background: white; border-radius: 12px; padding: 1.5rem; border: 1px solid #eee; margin-bottom: 1.5rem; }
     .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px; }
     .chart-title { font-size: 20px; font-weight: 700; color: #1a1a1a; }
@@ -67,10 +67,10 @@
     .year-select { padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 12px; color: #666; height: 28px; }
     .brush-wrap { position: relative; height: 58px; margin-top: 14px; margin-bottom: 1.25rem; }
     .brush-track { position: absolute; top: 12px; left: 0; right: 0; height: 4px; background: #e8e8e8; border-radius: 2px; }
-    .brush-fill { position: absolute; top: 12px; height: 4px; background: #378ADD33; pointer-events: none; }
+    .brush-fill { position: absolute; top: 12px; height: 4px; background: #357AC633; pointer-events: none; }
     .brush-input { position: absolute; width: 100%; top: 6px; margin: 0; padding: 0; background: transparent; -webkit-appearance: none; appearance: none; pointer-events: none; height: 16px; }
-    .brush-input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 24px; background: white; border: 2px solid #378ADD; border-radius: 3px; cursor: ew-resize; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
-    .brush-input::-moz-range-thumb { width: 12px; height: 24px; background: white; border: 2px solid #378ADD; border-radius: 3px; cursor: ew-resize; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .brush-input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 24px; background: white; border: 2px solid #357AC6; border-radius: 3px; cursor: ew-resize; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .brush-input::-moz-range-thumb { width: 12px; height: 24px; background: white; border: 2px solid #357AC6; border-radius: 3px; cursor: ew-resize; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
     .brush-tick-wrap { position: absolute; bottom: 0; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
     .brush-tick-line { width: 1px; height: 10px; background: #bbb; margin-bottom: 3px; flex-shrink: 0; }
     .brush-tick-label { font-size: 10px; color: #777; white-space: nowrap; line-height: 1; }
@@ -707,9 +707,9 @@
       data: {
         labels: overlayData.periods,
         datasets: [
-          { label: moneyLabel,           data: overlayData.moneyIndexed,    borderColor: '#378ADD', backgroundColor: '#378ADD10', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yMoney' },
+          { label: moneyLabel,           data: overlayData.moneyIndexed,    borderColor: '#357AC6', backgroundColor: '#357AC610', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yMoney' },
           { label: 'Purchasing Power',   data: overlayData.purchasingPower, borderColor: '#E8543A', backgroundColor: '#E8543A10', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yPower' },
-          { label: 'Inflation (YoY %)',  data: overlayData.inflation,       borderColor: '#F59E0B', backgroundColor: '#F59E0B10', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yInflation', borderDash: [4, 3] }
+          { label: 'Inflation (YoY %)',  data: overlayData.inflation,       borderColor: '#E78A28', backgroundColor: '#E78A2810', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yInflation', borderDash: [4, 3] }
         ]
       },
       options: {
@@ -721,9 +721,9 @@
         },
         scales: {
           x: { ticks: { font: { size: 11 }, maxRotation: 45, maxTicksLimit: 12 } },
-          yMoney:     { type: 'linear', position: 'left',  ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: true, text: 'Money Supply (2000 = 100)',    font: { size: 10 }, color: '#378ADD' } },
+          yMoney:     { type: 'linear', position: 'left',  ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: true, text: 'Money Supply (2000 = 100)',    font: { size: 10 }, color: '#357AC6' } },
           yPower:     { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: true, text: 'Purchasing Power (2000 = 100)', font: { size: 10 }, color: '#E8543A' } },
-          yInflation: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, callback: v => v.toFixed(1) + '%' }, title: { display: true, text: 'Inflation YoY (%)', font: { size: 10 }, color: '#F59E0B' } }
+          yInflation: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, callback: v => v.toFixed(1) + '%' }, title: { display: true, text: 'Inflation YoY (%)', font: { size: 10 }, color: '#E78A28' } }
         }
       }
     });
@@ -759,7 +759,7 @@
       chartWrap.parentNode.insertBefore(legendEl, chartWrap);
     }
     legendEl.innerHTML = '';
-    [{ label: moneyLabel, color: '#378ADD', i: 0 }, { label: 'Purchasing Power', color: '#E8543A', i: 1 }, { label: 'Inflation (YoY %)', color: '#F59E0B', i: 2 }].forEach(({ label, color, i }) => {
+    [{ label: moneyLabel, color: '#357AC6', i: 0 }, { label: 'Purchasing Power', color: '#E8543A', i: 1 }, { label: 'Inflation (YoY %)', color: '#E78A28', i: 2 }].forEach(({ label, color, i }) => {
       const item = document.createElement('div');
       item.className = 'legend-item';
       item.innerHTML = `<div class="legend-box" style="background:${color}"></div><span>${label}</span>`;
@@ -1001,7 +1001,7 @@
       type: 'bar',
       data: {
         labels: display.map(d => d.period),
-        datasets: [{ label: 'Debt % of GDP', data: display.map(d => d.value), backgroundColor: '#E8543A44', borderColor: '#E8543A', borderWidth: 1 }]
+        datasets: [{ label: 'Debt % of GDP', data: display.map(d => d.value), backgroundColor: '#E8543A55', borderColor: '#E8543A', borderWidth: 1 }]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
@@ -1030,8 +1030,8 @@
         datasets: [{
           label: 'GDP Growth YoY',
           data: display.map(d => d.value),
-          backgroundColor: display.map(d => d.value >= 0 ? '#1D9E7566' : '#D85A3066'),
-          borderColor:     display.map(d => d.value >= 0 ? '#1D9E75'   : '#D85A30'),
+          backgroundColor: display.map(d => d.value >= 0 ? '#259B6B66' : '#E8543A66'),
+          borderColor:     display.map(d => d.value >= 0 ? '#259B6B'   : '#E8543A'),
           borderWidth: 1,
         }]
       },
