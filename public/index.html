@@ -88,13 +88,11 @@
     .show-more-toggle:hover { color: #444; }
     .extra-charts { display: none; }
     .extra-charts.open { display: block; }
-    .money-rows { margin: 8px 0 6px; display: flex; flex-direction: column; gap: 6px; }
-    .money-row { display: flex; align-items: baseline; gap: 8px; }
-    .money-row-label { font-size: 11px; font-weight: 700; color: #aaa; min-width: 24px; }
-    .money-row-value { font-weight: 600; color: #1a1a1a; font-size: 16px; }
-    .money-row.main .money-row-label { color: #666; }
-    .money-row.main .money-row-value { font-size: 26px; }
-    .money-row-growth { font-size: 11px; }
+    .money-cols { display: flex; gap: 8px; margin: 10px 0 4px; }
+    .money-col { flex: 1; min-width: 0; }
+    .money-col-label { font-size: 11px; font-weight: 700; color: #888; margin-bottom: 2px; }
+    .money-col-value { font-size: 17px; font-weight: 600; color: #1a1a1a; white-space: nowrap; }
+    .money-col-growth { font-size: 11px; margin-top: 2px; }
   @media (max-width: 640px) {
     header { padding: 3rem 1.25rem 2.5rem; }
     header h1 { letter-spacing: -1px; }
@@ -752,19 +750,19 @@
     const container = document.getElementById(containerId);
     const { m1, m2, m3 } = data;
 
-    function rowHTML(label, series, main) {
-      if (!series || !series.length) return '';
+    function colHTML(label, series) {
+      if (!series || !series.length) return `<div class="money-col"><div class="money-col-label">${label}</div><div class="money-col-value">—</div></div>`;
       const latest = series[series.length - 1];
       const val = (latest.value / divisor).toFixed(1);
       let growth = '';
       if (series.length >= 2) {
         const prev = series[series.length - 2];
         const mom = (latest.value - prev.value) / prev.value * 100;
-        growth = `<span class="money-row-growth ${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '▲' : '▼'} ${Math.abs(mom).toFixed(2)}%</span>`;
+        growth = `<div class="money-col-growth ${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '▲' : '▼'} ${Math.abs(mom).toFixed(2)}%</div>`;
       }
-      return `<div class="money-row${main ? ' main' : ''}">
-        <span class="money-row-label">${label}</span>
-        <span class="money-row-value">${val}T</span>
+      return `<div class="money-col">
+        <div class="money-col-label">${label}</div>
+        <div class="money-col-value">${val}T</div>
         ${growth}
       </div>`;
     }
@@ -772,12 +770,12 @@
     const latestPeriod = (m2 || m1 || [])[((m2 || m1 || []).length || 1) - 1]?.period || '';
     container.innerHTML = `<div class="card">
       <div class="card-label">Money Supply</div>
-      <div class="card-desc">The three main measures of money in circulation. M2 is the most-watched — when it grows faster than the economy, inflation tends to follow. M1 is physical cash and checking accounts. M3 adds large institutional deposits.</div>
+      <div class="card-desc">Three measures of money in circulation. M1 is physical cash and everyday bank accounts — what you can spend right now. M2 adds savings and short-term deposits and is the most-watched measure: when it grows faster than the economy, inflation tends to follow. M3 is the broadest, adding large institutional deposits — a sustained rise signals long-term pressure.</div>
       <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
-      <div class="money-rows">
-        ${rowHTML('M2', m2, true)}
-        ${rowHTML('M1', m1, false)}
-        ${rowHTML('M3', m3, false)}
+      <div class="money-cols">
+        ${colHTML('M1', m1)}
+        ${colHTML('M2', m2)}
+        ${colHTML('M3', m3)}
       </div>
       <div class="card-unit">${currency} · ${latestPeriod}</div>
     </div>`;
