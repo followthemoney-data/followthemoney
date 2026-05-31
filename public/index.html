@@ -74,6 +74,43 @@
     .brush-tick-wrap { position: absolute; bottom: 0; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
     .brush-tick-line { width: 1px; height: 10px; background: #bbb; margin-bottom: 3px; flex-shrink: 0; }
     .brush-tick-label { font-size: 10px; color: #777; white-space: nowrap; line-height: 1; }
+  @media (max-width: 640px) {
+    header { padding: 3rem 1.25rem 2.5rem; }
+    header h1 { letter-spacing: -1px; }
+    .hero-amount { margin-top: 1.5rem; letter-spacing: -1px; }
+    .hero-divider { margin-top: 1.25rem; }
+    .hero-debt { letter-spacing: -1px; }
+
+    .container { padding: 0 1rem; margin-top: 1.25rem; }
+
+    .tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { white-space: nowrap; flex-shrink: 0; padding: 7px 14px; font-size: 14px; }
+
+    .cards { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+    .card { padding: 1rem; }
+    .card-label { font-size: 16px; }
+    .card-value { font-size: 22px; }
+
+    .pp-row { flex-wrap: wrap; }
+    .pp-row .card { flex: 1 1 calc(50% - 6px); min-width: 140px; }
+
+    .chart-container { padding: 1rem; }
+    .chart-header { align-items: flex-start; }
+    .chart-title { font-size: 16px; }
+    .time-filters { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; padding-bottom: 2px; }
+    .time-filters::-webkit-scrollbar { display: none; }
+    .tf { flex-shrink: 0; }
+
+    .chart-wrap { height: 200px; }
+    .brush-input::-webkit-slider-thumb { width: 16px; height: 32px; }
+    .brush-input::-moz-range-thumb { width: 16px; height: 32px; }
+
+    .chart-legend { gap: 10px; }
+    .legend-box { width: 20px; height: 20px; }
+
+    .source { text-align: left; }
+  }
   </style>
 </head>
 <body>
