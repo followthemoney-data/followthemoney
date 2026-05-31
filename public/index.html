@@ -53,6 +53,9 @@
     .explainer h2 { font-size: 16px; font-weight: 600; margin-bottom: 0.75rem; }
     .explainer p { font-size: 16px; color: #666; line-height: 1.7; margin-bottom: 0.5rem; }
     footer { text-align: center; padding: 2rem; color: #bbb; font-size: 12px; }
+    .hero-divider { border: none; border-top: 1px solid #2a2a2a; margin: 2rem auto 0; width: 80px; }
+    .hero-debt-label { font-size: 0.75rem; color: #555; text-transform: uppercase; letter-spacing: 0.2em; margin-top: 1.5rem; }
+    .hero-debt { font-size: clamp(1.8rem, 6vw, 4rem); font-weight: 300; color: #E8543A; margin-top: 0.5rem; letter-spacing: -2px; font-variant-numeric: tabular-nums; line-height: 1.1; }
     .pp-row { display: flex; gap: 12px; margin-bottom: 2rem; }
     .pp-row .card { flex: 1; }
     .gdp-subtitle { margin-top: 1.5rem; margin-bottom: 0.5rem; }
@@ -75,6 +78,10 @@
   <h1>The Fake Economy</h1>
   <div class="hero-amount" id="hero-amount">—</div>
   <div class="hero-meta" id="hero-meta"></div>
+  <hr class="hero-divider">
+  <p class="hero-debt-label">National Debt — Live</p>
+  <div class="hero-debt" id="hero-debt">—</div>
+  <div class="hero-meta" id="hero-debt-meta"></div>
 </header>
 
 <div class="container">
@@ -210,6 +217,85 @@
 </footer>
 
 <script>
+  let debtData = null;
+  let debtTicker = null;
+  let tickerVal = 0;
+  let tickerRate = 0;
+
+  const DEBT_SYMBOL = { ecb: '€', riksbank: 'SEK ', norway: 'NOK ', switzerland: 'CHF ', usa: '$' };
+
+  function formatDebtValue(v) {
+    if (Math.abs(v) >= 1e12) return (v / 1e12).toFixed(1) + 'T';
+    if (Math.abs(v) >= 1e9)  return (v / 1e9).toFixed(0) + 'B';
+    return Math.round(v).toLocaleString('en-US');
+  }
+
+  function startDebtTicker(value, perSecond, symbol) {
+    if (debtTicker) clearInterval(debtTicker);
+    tickerVal  = value;
+    tickerRate = perSecond;
+    const el = document.getElementById('hero-debt');
+    function tick() {
+      tickerVal += tickerRate / 10;
+      el.textContent = symbol + Math.round(tickerVal).toLocaleString('en-US');
+    }
+    tick();
+    debtTicker = setInterval(tick, 100);
+  }
+
+  function updateDebtDisplay() {
+    if (!debtData) return;
+    const d = debtData[currentBank];
+    const el = document.getElementById('hero-debt');
+    if (!d) { if (el) el.textContent = '—'; return; }
+    const sym = DEBT_SYMBOL[currentBank] || '';
+    const metaEl = document.getElementById('hero-debt-meta');
+    if (metaEl) metaEl.textContent = `General govt gross debt · ${d.gdpRatio}% of GDP · ${d.period} · IMF`;
+    startDebtTicker(d.value, d.perSecond, sym);
+  }
+
+  function renderDebtCard(containerId, debtInfo, symbol) {
+    const container = document.getElementById(containerId);
+    if (!container || !debtInfo) return;
+    const existing = container.querySelector('.debt-card');
+    if (existing) existing.remove();
+    const perSecAbs = Math.abs(debtInfo.perSecond);
+    const perSecFmt = perSecAbs >= 1000
+      ? symbol + Math.round(perSecAbs / 1000) + 'K'
+      : symbol + Math.round(perSecAbs);
+    const card = document.createElement('div');
+    card.className = 'card debt-card';
+    card.innerHTML = `
+      <div class="card-label">National Debt</div>
+      <div class="card-desc">Total general government gross debt — all outstanding borrowing by central and local governments combined. Shown as a percentage of GDP to allow comparison across economies of different sizes. Source: IMF World Economic Outlook (annual).</div>
+      <div class="card-value neg">${symbol}${formatDebtValue(debtInfo.value)}</div>
+      <div class="card-unit">${debtInfo.gdpRatio}% of GDP · ${debtInfo.period}</div>
+      <div class="card-growth neg">▲ ${perSecFmt} per second</div>
+    `;
+    container.appendChild(card);
+  }
+
+  function tryRenderDebt() {
+    if (!debtData) return;
+    const map = { ecb: 'ecb-pp', riksbank: 'riksbank-pp', norway: 'norway-pp', switzerland: 'switzerland-pp', usa: 'usa-pp' };
+    for (const [key, ppId] of Object.entries(map)) {
+      if (debtData[key]) renderDebtCard(ppId, debtData[key], DEBT_SYMBOL[key] || '');
+    }
+    updateDebtDisplay();
+  }
+
+  async function loadDebt() {
+    try {
+      const r = await fetch(API_BASE + '/api/debt');
+      const json = await r.json();
+      if (!json.success) throw new Error(json.error);
+      debtData = json.data;
+      tryRenderDebt();
+    } catch(e) {
+      console.error('Debt error:', e);
+    }
+  }
+
   let ecbChart = null, riksChart = null, norwayChart = null;
   let ecbFullData = null, riksFullData = null, norwayFullData = null;
   let ecbFilter = { mode: 'range', value: 12 };
@@ -253,6 +339,7 @@
       document.getElementById(b + '-view').style.display = bank === b ? '' : 'none'
     );
     updateHeroAmount();
+    updateDebtDisplay();
   }
 
   // ── Filter setters ─────────────────────────────────────────────────────────
@@ -883,6 +970,7 @@
 
   loadCPI();
   loadGDP();
+  loadDebt();
   loadECB();
   loadRiksbank();
   loadNorway();

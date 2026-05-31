@@ -612,6 +612,81 @@ app.get('/api/gdp-seed', async (req, res) => {
   }
 });
 
+// ─── Debt endpoint ────────────────────────────────────────────────────────────
+// IMF DataMapper API — public, no key required.
+// GGXWDG_NGDP: General Government Gross Debt (% of GDP), annual
+// NGDP:        Nominal GDP, billions of national currency, annual
+// Country codes: XM = Euro Area, SWE, NOR, CHE, USA
+// Debt value = NGDP × GGXWDG_NGDP / 100  (in billions local currency → multiply ×1e9 for units)
+// Per-second rate derived from year-on-year change in debt.
+// Redis keys: debt:snapshot, debt:checked (24h TTL)
+
+async function fetchDebtFromIMF() {
+  const IMF_MAP = { ecb: 'XM', riksbank: 'SWE', norway: 'NOR', switzerland: 'CHE', usa: 'USA' };
+  const codes = Object.values(IMF_MAP).join('/');
+  const BASE = 'https://www.imf.org/external/datamapper/api/v1';
+
+  const [r1, r2] = await Promise.all([
+    fetch(`${BASE}/GGXWDG_NGDP/${codes}`),
+    fetch(`${BASE}/NGDP/${codes}`),
+  ]);
+  if (!r1.ok) throw new Error(`IMF GGXWDG_NGDP HTTP ${r1.status}`);
+  if (!r2.ok) throw new Error(`IMF NGDP HTTP ${r2.status}`);
+
+  const d1 = await r1.json();
+  const d2 = await r2.json();
+
+  const result = {};
+  for (const [key, code] of Object.entries(IMF_MAP)) {
+    try {
+      const debtPct = d1.values?.GGXWDG_NGDP?.[code] || {};
+      const gdp     = d2.values?.NGDP?.[code] || {};
+
+      const years = Object.keys(debtPct)
+        .map(Number)
+        .filter(y => debtPct[y] != null && gdp[y] != null)
+        .sort((a, b) => a - b);
+
+      if (years.length < 2) { result[key] = null; continue; }
+
+      const y1 = years[years.length - 1];
+      const y0 = years[years.length - 2];
+
+      const debt1 = gdp[y1] * debtPct[y1] / 100; // billions local currency
+      const debt0 = gdp[y0] * debtPct[y0] / 100;
+
+      const perSecond = (debt1 - debt0) * 1e9 / (365.25 * 24 * 3600);
+
+      result[key] = {
+        value:     Math.round(debt1 * 1e9),
+        gdpRatio:  +debtPct[y1].toFixed(1),
+        perSecond: +perSecond.toFixed(2),
+        period:    String(y1),
+      };
+    } catch (_) {
+      result[key] = null;
+    }
+  }
+  return result;
+}
+
+app.get('/api/debt', async (req, res) => {
+  try {
+    const raw = await redis.get('debt:snapshot');
+    let snapshot = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
+    const cached = await redis.get('debt:checked');
+    if (!cached || !snapshot) {
+      snapshot = await fetchDebtFromIMF();
+      await redis.set('debt:snapshot', JSON.stringify(snapshot));
+      await redis.set('debt:checked', '1', { ex: 86400 });
+    }
+    res.json({ success: true, data: snapshot, source: cached && snapshot ? 'cache' : 'live' });
+  } catch (e) {
+    console.error('Debt error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ─── CPI endpoint (purchasing power data via FRED) ───────────────────────────
 // Fetches monthly CPI index for all 5 countries from FRED (same API key as USA).
 // Used by the frontend to calculate purchasing power over time.
