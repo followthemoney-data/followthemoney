@@ -515,15 +515,19 @@
     const moneyBaseVal = moneyBaseEntry.value;
     const cpiBaseVal = cpiMap[basePeriod];
 
+    const latestCpiEntry = cpiSeries ? cpiSeries.filter(d => cpiMap[d.period] != null).slice(-1)[0] : null;
+    const latestPP = (cpiBaseVal && latestCpiEntry) ? +((cpiBaseVal / latestCpiEntry.value) * 100).toFixed(1) : null;
+
     return {
       periods: filtered.map(d => d.period),
       moneyIndexed: filtered.map(d => +((d.value / moneyBaseVal) * 100).toFixed(1)),
-      // null where CPI data doesn't exist → Chart.js draws a gap in the orange line
       purchasingPower: filtered.map(d =>
         cpiBaseVal && cpiMap[d.period] != null
           ? +((cpiBaseVal / cpiMap[d.period]) * 100).toFixed(1)
           : null
       ),
+      latestPP,
+      baseYear: basePeriod.slice(0, 4),
     };
   }
 
@@ -559,13 +563,26 @@
       }
     });
 
-    // Purchasing power explainer
-    if (!document.getElementById(canvasId + '-desc')) {
-      const descEl = document.createElement('p');
+    // Purchasing power explainer — always update with real current data
+    let descEl = document.getElementById(canvasId + '-desc');
+    if (!descEl) {
+      descEl = document.createElement('p');
       descEl.id = canvasId + '-desc';
       descEl.className = 'chart-desc';
-      descEl.textContent = 'Both lines indexed to 2000 = 100. Purchasing power is calculated from CPI (consumer price index) and shows what your currency can actually buy over time. If it reads 50, prices have doubled since 2000 — meaning your money buys half as much.';
       chartWrap.parentNode.insertBefore(descEl, chartWrap);
+    }
+    const base = overlayData.baseYear || '2000';
+    if (overlayData.latestPP != null) {
+      const pp = overlayData.latestPP;
+      const priceRise = Math.round(100 / pp * 100 - 100);
+      const ppLoss    = Math.round(100 - pp);
+      let priceText;
+      if (priceRise > 0)      priceText = `prices are ${priceRise}% higher than in ${base}, meaning your money buys ${ppLoss}% less than it did then`;
+      else if (priceRise < 0) priceText = `prices are ${Math.abs(priceRise)}% lower than in ${base}, meaning your money actually buys ${Math.abs(ppLoss)}% more`;
+      else                    priceText = `prices are roughly the same as in ${base}`;
+      descEl.textContent = `Both lines start at 100 in ${base}. The blue line is money supply, the red line is purchasing power — how far your money actually goes, based on official CPI data. Today purchasing power reads ${pp} — ${priceText}.`;
+    } else {
+      descEl.textContent = `Both lines start at 100 in ${base}. The blue line is money supply, the red line is purchasing power — how far your money actually goes, based on official CPI data.`;
     }
 
     // Custom HTML legend
