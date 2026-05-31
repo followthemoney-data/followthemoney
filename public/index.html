@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Follow The Money — Live Central Bank Data</title>
+  <title>The Fake Economy — Live Central Bank Data</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; }
-    header { background: #1a1a1a; color: white; padding: 2rem; text-align: center; }
-    header h1 { font-size: 2rem; font-weight: 600; letter-spacing: -0.5px; }
-    header p { color: #999; margin-top: 0.5rem; font-size: 0.95rem; }
+    header { background: #1a1a1a; color: white; padding: 4rem 2rem 3.5rem; text-align: center; }
+    header h1 { font-size: clamp(2.2rem, 6vw, 4rem); font-weight: 700; letter-spacing: -1.5px; line-height: 1; }
+    .hero-sub { font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 2rem; }
+    .hero-amount { font-size: clamp(1.8rem, 5vw, 3.2rem); font-weight: 300; color: #fff; margin-top: 1.75rem; letter-spacing: -1px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .hero-meta { font-size: 0.78rem; color: #555; margin-top: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; }
     .container { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
     .tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .tab { padding: 8px 20px; border-radius: 8px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 14px; color: #666; }
@@ -46,8 +48,10 @@
 <body>
 
 <header>
-  <h1>Follow The Money</h1>
-  <p>Live money supply data direct from central banks</p>
+  <p class="hero-sub">Live central bank money supply data</p>
+  <h1>The Fake Economy</h1>
+  <div class="hero-amount" id="hero-amount">—</div>
+  <div class="hero-meta" id="hero-meta"></div>
 </header>
 
 <div class="container">
@@ -172,17 +176,41 @@
   let swissChart = null, swissFullData = null, swissFilter = { mode: 'range', value: 12 };
   let usaChart = null, usaFullData = null, usaFilter = { mode: 'range', value: 12 };
   let cpiData = null;
+  let currentBank = 'ecb';
   const API_BASE = window.location.origin;
   const BASE_PERIOD = '2000-01';
+
+  const HERO_CONFIG = {
+    ecb:         { sym: '€',    mult: 1e6, series: () => ecbFullData?.m3,    label: 'Euro Area',   metric: 'M3' },
+    riksbank:    { sym: 'SEK ', mult: 1e6, series: () => riksFullData?.m3,   label: 'Sweden',      metric: 'M3' },
+    norway:      { sym: 'NOK ', mult: 1e6, series: () => norwayFullData?.m3, label: 'Norway',      metric: 'M3' },
+    switzerland: { sym: 'CHF ', mult: 1e6, series: () => swissFullData?.m3,  label: 'Switzerland', metric: 'M3' },
+    usa:         { sym: '$',    mult: 1e9, series: () => usaFullData?.m2,    label: 'USA',         metric: 'M2' },
+  };
+
+  function updateHeroAmount() {
+    const cfg = HERO_CONFIG[currentBank];
+    const amountEl = document.getElementById('hero-amount');
+    const metaEl   = document.getElementById('hero-meta');
+    if (!cfg || !amountEl) return;
+    const series = cfg.series();
+    if (!series || !series.length) { amountEl.textContent = '—'; metaEl.textContent = ''; return; }
+    const latest = series[series.length - 1];
+    const actual = Math.round(latest.value * cfg.mult);
+    amountEl.textContent = cfg.sym + actual.toLocaleString('en-US');
+    metaEl.textContent   = cfg.label + ' · ' + cfg.metric + ' · ' + latest.period;
+  }
 
   // ── Tab switching ──────────────────────────────────────────────────────────
 
   function switchBank(bank, btn) {
+    currentBank = bank;
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     ['ecb', 'riksbank', 'norway', 'switzerland', 'usa'].forEach(b =>
       document.getElementById(b + '-view').style.display = bank === b ? '' : 'none'
     );
+    updateHeroAmount();
   }
 
   // ── Filter setters ─────────────────────────────────────────────────────────
@@ -442,6 +470,7 @@
     if (norwayFullData) { buildYearButtons(norwayFullData.m2, 'norway-years',        'setNorwayYear');redrawNorway();  }
     if (swissFullData)  { buildYearButtons(swissFullData.m2,  'switzerland-years',   'setSwissYear'); redrawSwiss();   }
     if (usaFullData)    { buildYearButtons(usaFullData.m2,    'usa-years',           'setUsaYear');   redrawUsa();     }
+    updateHeroAmount();
   }
 
   function redrawEcb() {
@@ -493,6 +522,7 @@
       renderCards('ecb-cards', ecbFullData, 'EUR', 1e6);
       buildYearButtons(ecbFullData.m2, 'ecb-years', 'setEcbYear');
       document.getElementById('updated').textContent = 'Last updated: ' + new Date().toLocaleString();
+      updateHeroAmount();
       tryRenderAll();
     } catch(e) {
       document.getElementById('ecb-cards').innerHTML = '<div class="loading">Could not load ECB data. Try refreshing.</div>';
