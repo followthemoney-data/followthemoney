@@ -482,8 +482,6 @@
     return {
       id: 'eventAnnotations',
       afterInit(chart) {
-        if (chart.canvas._annListeners) return;
-        chart.canvas._annListeners = true;
         let tip = document.getElementById('annotation-tooltip');
         if (!tip) {
           tip = document.createElement('div');
@@ -491,8 +489,11 @@
           tip.className = 'annotation-tooltip';
           document.body.appendChild(tip);
         }
-        chart.canvas.addEventListener('mousemove', e => {
-          const rect = chart.canvas.getBoundingClientRect();
+        const canvas = chart.canvas;
+        if (canvas._annMouseMove)  canvas.removeEventListener('mousemove',  canvas._annMouseMove);
+        if (canvas._annMouseLeave) canvas.removeEventListener('mouseleave', canvas._annMouseLeave);
+        canvas._annMouseMove = e => {
+          const rect = canvas.getBoundingClientRect();
           const mx = e.clientX - rect.left;
           const { chartArea, scales, data } = chart;
           if (!scales.x || !chartArea) return;
@@ -502,23 +503,25 @@
             const idx = labels.findIndex(l => String(l).startsWith(ev.year));
             if (idx < 0) return;
             const x = scales.x.getPixelForValue(idx);
-            if (x >= chartArea.left && x <= chartArea.right && Math.abs(mx - x) < 14) found = { ev, x };
+            if (x >= chartArea.left && x <= chartArea.right && Math.abs(mx - x) < 14) found = ev;
           });
           if (found) {
-            tip.innerHTML = `<strong>${found.ev.label}</strong><p>${found.ev.tooltip}</p>`;
+            tip.innerHTML = `<strong>${found.label}</strong><p>${found.tooltip}</p>`;
             tip.style.display = 'block';
             tip.style.left = (e.clientX + 14) + 'px';
             tip.style.top  = (e.clientY - 10) + 'px';
-            chart.canvas.style.cursor = 'pointer';
+            canvas.style.cursor = 'pointer';
           } else {
             tip.style.display = 'none';
-            chart.canvas.style.cursor = '';
+            canvas.style.cursor = '';
           }
-        });
-        chart.canvas.addEventListener('mouseleave', () => {
-          document.getElementById('annotation-tooltip').style.display = 'none';
-          chart.canvas.style.cursor = '';
-        });
+        };
+        canvas._annMouseLeave = () => {
+          tip.style.display = 'none';
+          canvas.style.cursor = '';
+        };
+        canvas.addEventListener('mousemove',  canvas._annMouseMove);
+        canvas.addEventListener('mouseleave', canvas._annMouseLeave);
       },
       afterDraw(chart) {
         const { ctx, chartArea, scales } = chart;
