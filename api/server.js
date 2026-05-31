@@ -675,6 +675,49 @@ async function fetchDebtFromIMF() {
       result[key] = null;
     }
   }
+  // Override USA with FRED GFDEBTN (1966–) for longer history than IMF
+  try {
+    const apiKey = process.env.FRED_API_KEY;
+    const BASE_FRED = 'https://api.stlouisfed.org/fred/series/observations';
+    const [r3, r4] = await Promise.all([
+      fetch(`${BASE_FRED}?series_id=GFDEBTN&api_key=${apiKey}&file_type=json&observation_start=1966-01-01`),
+      fetch(`${BASE_FRED}?series_id=GDP&api_key=${apiKey}&file_type=json&observation_start=1966-01-01`),
+    ]);
+    const debtObs = (await r3.json()).observations?.filter(o => o.value !== '.') || [];
+    const gdpObs  = (await r4.json()).observations?.filter(o => o.value !== '.') || [];
+
+    const gdpMap = {};
+    for (const o of gdpObs) gdpMap[o.date.slice(0, 7)] = parseFloat(o.value);
+
+    const annualMap = {};
+    for (const o of debtObs) {
+      const year = o.date.slice(0, 4);
+      if (parseInt(year) > capYear) continue;
+      const gdp = gdpMap[o.date.slice(0, 7)];
+      if (!gdp) continue;
+      annualMap[year] = {
+        ratio:   +((parseFloat(o.value) / 1000) / gdp * 100).toFixed(1),
+        debtUsd: parseFloat(o.value) * 1e6,
+      };
+    }
+
+    const usaYears = Object.keys(annualMap).sort();
+    if (usaYears.length > 1) {
+      const y1 = usaYears[usaYears.length - 1];
+      const y0 = usaYears[usaYears.length - 2];
+      const perSecond = (annualMap[y1].debtUsd - annualMap[y0].debtUsd) / (365.25 * 24 * 3600);
+      result.usa = {
+        value:     Math.round(annualMap[y1].debtUsd),
+        gdpRatio:  annualMap[y1].ratio,
+        perSecond: +perSecond.toFixed(2),
+        period:    y1,
+        series:    usaYears.map(y => ({ period: y, value: annualMap[y].ratio })),
+      };
+    }
+  } catch (e) {
+    console.error('USA FRED debt override failed:', e.message);
+  }
+
   return result;
 }
 
