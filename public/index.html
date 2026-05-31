@@ -222,7 +222,7 @@
   let tickerVal = 0;
   let tickerRate = 0;
 
-  const DEBT_SYMBOL = { ecb: '€', riksbank: 'SEK ', norway: 'NOK ', switzerland: 'CHF ', usa: '$' };
+  const DEBT_SYMBOL = { ecb: '$', riksbank: '$', norway: '$', switzerland: '$', usa: '$' };
 
   function formatDebtValue(v) {
     if (Math.abs(v) >= 1e12) return (v / 1e12).toFixed(1) + 'T';
@@ -250,7 +250,7 @@
     if (!d) { if (el) el.textContent = '—'; return; }
     const sym = DEBT_SYMBOL[currentBank] || '';
     const metaEl = document.getElementById('hero-debt-meta');
-    if (metaEl) metaEl.textContent = `General govt gross debt · ${d.gdpRatio}% of GDP · ${d.period} · IMF`;
+    if (metaEl) metaEl.textContent = `General govt gross debt · ${d.gdpRatio}% of GDP · ${d.period} · USD equiv. · IMF`;
     startDebtTicker(d.value, d.perSecond, sym);
   }
 
@@ -267,7 +267,7 @@
     card.className = 'card debt-card';
     card.innerHTML = `
       <div class="card-label">National Debt</div>
-      <div class="card-desc">Total general government gross debt — all outstanding borrowing by central and local governments combined. Shown as a percentage of GDP to allow comparison across economies of different sizes. Source: IMF World Economic Outlook (annual).</div>
+      <div class="card-desc">Total general government gross debt — all outstanding borrowing by central and local governments combined. Shown in USD equivalent and as a percentage of GDP. Source: IMF World Economic Outlook (annual).</div>
       <div class="card-value neg">${symbol}${formatDebtValue(debtInfo.value)}</div>
       <div class="card-unit">${debtInfo.gdpRatio}% of GDP · ${debtInfo.period}</div>
       <div class="card-growth neg">▲ ${perSecFmt} per second</div>

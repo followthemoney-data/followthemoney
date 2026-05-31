@@ -576,6 +576,12 @@ async function fetchGdpFromFred() {
   return results;
 }
 
+app.get('/api/debt-reset', async (req, res) => {
+  await redis.del('debt:snapshot');
+  await redis.del('debt:checked');
+  res.json({ success: true, message: 'Debt cache cleared.' });
+});
+
 app.get('/api/gdp', async (req, res) => {
   try {
     const raw = await redis.get('gdp:snapshot');
@@ -622,16 +628,17 @@ app.get('/api/gdp-seed', async (req, res) => {
 // Redis keys: debt:snapshot, debt:checked (24h TTL)
 
 async function fetchDebtFromIMF() {
-  const IMF_MAP = { ecb: 'XM', riksbank: 'SWE', norway: 'NOR', switzerland: 'CHE', usa: 'USA' };
-  const codes = Object.values(IMF_MAP).join('/');
+  // EU = European Union aggregate (closest available proxy for Euro Area in IMF DataMapper)
+  const IMF_MAP = { ecb: 'EU', riksbank: 'SWE', norway: 'NOR', switzerland: 'CHE', usa: 'USA' };
   const BASE = 'https://www.imf.org/external/datamapper/api/v1';
+  const capYear = new Date().getFullYear();
 
   const [r1, r2] = await Promise.all([
-    fetch(`${BASE}/GGXWDG_NGDP/${codes}`),
-    fetch(`${BASE}/NGDP/${codes}`),
+    fetch(`${BASE}/GGXWDG_NGDP`),
+    fetch(`${BASE}/NGDPD`),
   ]);
   if (!r1.ok) throw new Error(`IMF GGXWDG_NGDP HTTP ${r1.status}`);
-  if (!r2.ok) throw new Error(`IMF NGDP HTTP ${r2.status}`);
+  if (!r2.ok) throw new Error(`IMF NGDPD HTTP ${r2.status}`);
 
   const d1 = await r1.json();
   const d2 = await r2.json();
@@ -640,11 +647,11 @@ async function fetchDebtFromIMF() {
   for (const [key, code] of Object.entries(IMF_MAP)) {
     try {
       const debtPct = d1.values?.GGXWDG_NGDP?.[code] || {};
-      const gdp     = d2.values?.NGDP?.[code] || {};
+      const gdpUsd  = d2.values?.NGDPD?.[code] || {};
 
       const years = Object.keys(debtPct)
         .map(Number)
-        .filter(y => debtPct[y] != null && gdp[y] != null)
+        .filter(y => debtPct[y] != null && gdpUsd[y] != null && y <= capYear)
         .sort((a, b) => a - b);
 
       if (years.length < 2) { result[key] = null; continue; }
@@ -652,13 +659,13 @@ async function fetchDebtFromIMF() {
       const y1 = years[years.length - 1];
       const y0 = years[years.length - 2];
 
-      const debt1 = gdp[y1] * debtPct[y1] / 100; // billions local currency
-      const debt0 = gdp[y0] * debtPct[y0] / 100;
+      const debt1 = gdpUsd[y1] * debtPct[y1] / 100; // billions USD
+      const debt0 = gdpUsd[y0] * debtPct[y0] / 100;
 
       const perSecond = (debt1 - debt0) * 1e9 / (365.25 * 24 * 3600);
 
       result[key] = {
-        value:     Math.round(debt1 * 1e9),
+        value:     Math.round(debt1 * 1e9),   // USD
         gdpRatio:  +debtPct[y1].toFixed(1),
         perSecond: +perSecond.toFixed(2),
         period:    String(y1),
@@ -670,24 +677,6 @@ async function fetchDebtFromIMF() {
   return result;
 }
 
-app.get('/api/debt-debug', async (req, res) => {
-  try {
-    const BASE = 'https://www.imf.org/external/datamapper/api/v1';
-    const r1 = await fetch(`${BASE}/GGXWDG_NGDP`);
-    const r2 = await fetch(`${BASE}/NGDPD`);
-    const d1 = await r1.json();
-    const d2 = await r2.json();
-    const codes = ['USA', 'XM', 'SWE', 'NOR', 'CHE', 'U2', 'EUZ', 'EU', 'EUR', 'EA', 'EA19', 'EA20', 'EMU'];
-    const debtCheck = {};
-    for (const c of codes) {
-      const dp = d1.values?.GGXWDG_NGDP?.[c];
-      debtCheck[c] = dp ? 'HAS DATA — last year: ' + Object.keys(dp).sort().slice(-1)[0] : 'MISSING';
-    }
-    res.json({ debtCheck });
-  } catch(e) {
-    res.json({ error: e.message });
-  }
-});
 
 app.get('/api/debt', async (req, res) => {
   try {
