@@ -550,10 +550,12 @@ async function fetchCpiFromFred() {
     switzerland: 'CP0000CHM086NEST',
   };
 
-  // Sequential fetching — FRED rate-limits concurrent requests (HTTP 429)
+  // Sequential with 700ms gap — FRED rate limit is 2 req/sec (120/min)
   const errors = {};
   const results = {};
+  const wait = ms => new Promise(r => setTimeout(r, ms));
   for (const [key, id] of Object.entries(seriesMap)) {
+    if (Object.keys(results).length > 0) await wait(700);
     try {
       results[key] = await fetchSeries(id);
     } catch (e) {
