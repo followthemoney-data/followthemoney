@@ -311,11 +311,11 @@
   const BASE_PERIOD = '2000-01';
 
   const HERO_CONFIG = {
-    ecb:         { sym: '€',    mult: 1e6, series: () => ecbFullData?.m3,    label: 'Euro Area',   metric: 'M3', explain: 'The total amount of money officially counted as existing in this economy — cash in wallets, money in bank accounts, savings, and large institutional funds combined.' },
-    riksbank:    { sym: 'SEK ', mult: 1e6, series: () => riksFullData?.m3,   label: 'Sweden',      metric: 'M3', explain: 'The total amount of money officially counted as existing in this economy — cash in wallets, money in bank accounts, savings, and large institutional funds combined.' },
-    norway:      { sym: 'NOK ', mult: 1e6, series: () => norwayFullData?.m3, label: 'Norway',      metric: 'M3', explain: 'The total amount of money officially counted as existing in this economy — cash in wallets, money in bank accounts, savings, and large institutional funds combined.' },
-    switzerland: { sym: 'CHF ', mult: 1e6, series: () => swissFullData?.m3,  label: 'Switzerland', metric: 'M3', explain: 'The total amount of money officially counted as existing in this economy — cash in wallets, money in bank accounts, savings, and large institutional funds combined.' },
-    usa:         { sym: '$',    mult: 1e9, series: () => usaFullData?.m2,    label: 'USA',         metric: 'M2', explain: 'The total amount of money officially counted as existing in this economy — cash in wallets, checking accounts, savings deposits, and money market accounts combined.' },
+    ecb:         { sym: '€',    mult: 1e6, series: () => ecbFullData?.m3,    label: 'Euro Area',   metric: 'M3', explain: 'All money officially counted in this economy — cash, bank deposits, savings, and institutional funds.' },
+    riksbank:    { sym: 'SEK ', mult: 1e6, series: () => riksFullData?.m3,   label: 'Sweden',      metric: 'M3', explain: 'All money officially counted in this economy — cash, bank deposits, savings, and institutional funds.' },
+    norway:      { sym: 'NOK ', mult: 1e6, series: () => norwayFullData?.m3, label: 'Norway',      metric: 'M3', explain: 'All money officially counted in this economy — cash, bank deposits, savings, and institutional funds.' },
+    switzerland: { sym: 'CHF ', mult: 1e6, series: () => swissFullData?.m3,  label: 'Switzerland', metric: 'M3', explain: 'All money officially counted in this economy — cash, bank deposits, savings, and institutional funds.' },
+    usa:         { sym: '$',    mult: 1e9, series: () => usaFullData?.m2,    label: 'USA',         metric: 'M2', explain: 'All money officially counted in this economy — cash, checking accounts, savings, and money market accounts.' },
   };
 
   function updateHeroAmount() {
