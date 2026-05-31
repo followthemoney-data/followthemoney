@@ -63,6 +63,7 @@
     <button class="tab" onclick="switchBank('riksbank', this)">🇸🇪 Sweden (Riksbank)</button>
     <button class="tab" onclick="switchBank('norway', this)">🇳🇴 Norway (SSB)</button>
     <button class="tab" onclick="switchBank('switzerland', this)">🇨🇭 Switzerland (SNB)</button>
+    <button class="tab" onclick="switchBank('usa', this)">🇺🇸 USA (Fed)</button>
   </div>
 
   <div id="updated" class="updated">Loading latest data...</div>
@@ -120,6 +121,24 @@
     </div>
     <div class="source">Source: Statistics Norway (SSB) — data.ssb.no</div>
   </div>
+  <!-- USA view -->
+  <div id="usa-view" style="display:none">
+    <div id="usa-cards" class="cards"><div class="loading">Fetching Fed data...</div></div>
+    <div class="chart-container">
+      <div class="chart-header">
+        <div class="chart-title" id="usa-chart-title">M2 — Money supply trend (USD)</div>
+        <div class="time-filters">
+          <button class="tf active" onclick="setUsaFilter('range', 12, this)">12M</button>
+          <button class="tf" onclick="setUsaFilter('range', 60, this)">5Y</button>
+          <button class="tf" onclick="setUsaFilter('all', null, this)">All</button>
+        </div>
+      </div>
+      <div class="year-filters" id="usa-years"></div>
+      <div class="chart-wrap"><canvas id="usa-chart"></canvas></div>
+    </div>
+    <div class="source">Source: Federal Reserve via FRED — api.stlouisfed.org</div>
+  </div>
+
   <!-- Switzerland view -->
   <div id="switzerland-view" style="display:none">
     <div id="switzerland-cards" class="cards"><div class="loading">Fetching SNB data...</div></div>
@@ -161,6 +180,7 @@
     document.getElementById('riksbank-view').style.display = bank === 'riksbank' ? '' : 'none';
     document.getElementById('norway-view').style.display = bank === 'norway' ? '' : 'none';
     document.getElementById('switzerland-view').style.display = bank === 'switzerland' ? '' : 'none';
+    document.getElementById('usa-view').style.display = bank === 'usa' ? '' : 'none';
   }
 
   // ── Filter setters ─────────────────────────────────────────────────────────
@@ -422,10 +442,56 @@
     }
   }
 
+  let usaChart = null;
+  let usaFullData = null;
+  let usaFilter = { mode: 'range', value: 12 };
+
+  function setUsaFilter(mode, value, btn) {
+    usaFilter = { mode, value };
+    document.querySelectorAll('#usa-view .tf').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#usa-years .yf').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if (usaFullData) redrawUsa();
+  }
+
+  function setUsaYear(year, btn) {
+    usaFilter = { mode: 'year', value: year };
+    document.querySelectorAll('#usa-view .tf').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#usa-years .yf').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if (usaFullData) redrawUsa();
+  }
+
+  function redrawUsa() {
+    const sliced = applyFilter(usaFullData.m2, usaFilter);
+    document.getElementById('usa-chart-title').textContent = 'M2 — Money supply trend (USD) — ' + filterLabel(usaFilter);
+    // FRED data is in billions USD; multiply by 1000 → millions so renderChart's /1e6 shows trillions
+    renderChart('usa-chart', sliced.map(d => ({ period: d.period, value: d.value * 1000 })), 'M2 (USD)', '#C0392B', usaChart, v => usaChart = v);
+  }
+
+  async function loadUSA() {
+    try {
+      const r = await fetch(API_BASE + '/api/usa');
+      const json = await r.json();
+      if (!json.success) throw new Error(json.error);
+      usaFullData = json.data;
+      // divisor=1000: billions → trillions for the cards. m3 is null (USA has no M3).
+      renderCards('usa-cards', { m1: usaFullData.m1, m2: usaFullData.m2, m3: null }, 'USD', 1000);
+      buildYearButtons(usaFullData.m2, 'usa-years', 'setUsaYear');
+      document.getElementById('usa-chart-title').textContent = 'M2 — Money supply trend (USD) — 12 months';
+      const sliced = applyFilter(usaFullData.m2, usaFilter);
+      renderChart('usa-chart', sliced.map(d => ({ period: d.period, value: d.value * 1000 })), 'M2 (USD)', '#C0392B', usaChart, v => usaChart = v);
+    } catch(e) {
+      document.getElementById('usa-cards').innerHTML = '<div class="loading">Could not load Fed data. Try refreshing.</div>';
+      console.error('USA error:', e);
+    }
+  }
+
   loadECB();
   loadRiksbank();
   loadNorway();
   loadSwitzerland();
+  loadUSA();
 </script>
 
 </body>
