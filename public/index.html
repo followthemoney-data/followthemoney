@@ -102,6 +102,7 @@
   <div id="ecb-view">
     <div id="ecb-cards" class="cards"><div class="loading">Fetching ECB data...</div></div>
     <div id="ecb-pp" class="pp-row"></div>
+    <div id="ecb-pp2" class="pp-row"></div>
     <div class="chart-container">
       <div class="chart-header">
         <div>
@@ -133,6 +134,7 @@
   <div id="riksbank-view" style="display:none">
     <div id="riksbank-cards" class="cards"><div class="loading">Fetching Riksbank data...</div></div>
     <div id="riksbank-pp" class="pp-row"></div>
+    <div id="riksbank-pp2" class="pp-row"></div>
     <div class="chart-container">
       <div class="chart-header">
         <div>
@@ -164,6 +166,7 @@
   <div id="norway-view" style="display:none">
     <div id="norway-cards" class="cards"><div class="loading">Fetching SSB data...</div></div>
     <div id="norway-pp" class="pp-row"></div>
+    <div id="norway-pp2" class="pp-row"></div>
     <div class="chart-container">
       <div class="chart-header">
         <div>
@@ -194,6 +197,7 @@
   <div id="usa-view" style="display:none">
     <div id="usa-cards" class="cards"><div class="loading">Fetching Fed data...</div></div>
     <div id="usa-pp" class="pp-row"></div>
+    <div id="usa-pp2" class="pp-row"></div>
     <div class="chart-container">
       <div class="chart-header">
         <div>
@@ -225,6 +229,7 @@
   <div id="switzerland-view" style="display:none">
     <div id="switzerland-cards" class="cards"><div class="loading">Fetching SNB data...</div></div>
     <div id="switzerland-pp" class="pp-row"></div>
+    <div id="switzerland-pp2" class="pp-row"></div>
     <div class="chart-container">
       <div class="chart-header">
         <div>
@@ -319,7 +324,7 @@
 
   function tryRenderDebt() {
     if (!debtData) return;
-    const map = { ecb: 'ecb-pp', riksbank: 'riksbank-pp', norway: 'norway-pp', switzerland: 'switzerland-pp', usa: 'usa-pp' };
+    const map = { ecb: 'ecb-pp2', riksbank: 'riksbank-pp2', norway: 'norway-pp2', switzerland: 'switzerland-pp2', usa: 'usa-pp2' };
     for (const [key, ppId] of Object.entries(map)) {
       if (debtData[key]) renderDebtCard(ppId, debtData[key], DEBT_SYMBOL[key] || '');
     }
@@ -822,11 +827,11 @@
 
   function tryRenderAll() {
     if (!cpiData) return;
-    if (ecbFullData)    { buildYearDropdown(ecbFullData.m2,    'ecb-year-select');         buildBrush('ecb',         ecbFullData.m2);    redrawEcb();    renderPurchasingPowerCard('ecb-pp',         cpiData.ecb);         renderInflationCard('ecb-pp',         cpiData.ecb);         if (gdpData?.ecb)         renderGdpCard('ecb-pp',         gdpData.ecb);         }
-    if (riksFullData)   { buildYearDropdown(riksFullData.m2,   'riksbank-year-select');    buildBrush('riksbank',    riksFullData.m2);   redrawRiks();   renderPurchasingPowerCard('riksbank-pp',     cpiData.riksbank);    renderInflationCard('riksbank-pp',     cpiData.riksbank);    if (gdpData?.riksbank)    renderGdpCard('riksbank-pp',     gdpData.riksbank);    }
-    if (norwayFullData) { buildYearDropdown(norwayFullData.m2, 'norway-year-select');      buildBrush('norway',      norwayFullData.m2); redrawNorway(); renderPurchasingPowerCard('norway-pp',       cpiData.norway);      renderInflationCard('norway-pp',       cpiData.norway);      if (gdpData?.norway)      renderGdpCard('norway-pp',       gdpData.norway);      }
-    if (swissFullData)  { buildYearDropdown(swissFullData.m2,  'switzerland-year-select'); buildBrush('switzerland', swissFullData.m2);  redrawSwiss();  renderPurchasingPowerCard('switzerland-pp',  cpiData.switzerland); renderInflationCard('switzerland-pp',  cpiData.switzerland); if (gdpData?.switzerland) renderGdpCard('switzerland-pp',  gdpData.switzerland); }
-    if (usaFullData)    { buildYearDropdown(usaFullData.m2,    'usa-year-select');         buildBrush('usa',         usaFullData.m2);    redrawUsa();    renderPurchasingPowerCard('usa-pp',          cpiData.usa);         renderInflationCard('usa-pp',          cpiData.usa);         if (gdpData?.usa)         renderGdpCard('usa-pp',          gdpData.usa);         }
+    if (ecbFullData)    { buildYearDropdown(ecbFullData.m2,    'ecb-year-select');         buildBrush('ecb',         ecbFullData.m2);    redrawEcb();    renderPurchasingPowerCard('ecb-pp',         cpiData.ecb);         renderInflationCard('ecb-pp',         cpiData.ecb);         if (gdpData?.ecb)         renderGdpCard('ecb-pp2',         gdpData.ecb);         }
+    if (riksFullData)   { buildYearDropdown(riksFullData.m2,   'riksbank-year-select');    buildBrush('riksbank',    riksFullData.m2);   redrawRiks();   renderPurchasingPowerCard('riksbank-pp',     cpiData.riksbank);    renderInflationCard('riksbank-pp',     cpiData.riksbank);    if (gdpData?.riksbank)    renderGdpCard('riksbank-pp2',     gdpData.riksbank);    }
+    if (norwayFullData) { buildYearDropdown(norwayFullData.m2, 'norway-year-select');      buildBrush('norway',      norwayFullData.m2); redrawNorway(); renderPurchasingPowerCard('norway-pp',       cpiData.norway);      renderInflationCard('norway-pp',       cpiData.norway);      if (gdpData?.norway)      renderGdpCard('norway-pp2',       gdpData.norway);      }
+    if (swissFullData)  { buildYearDropdown(swissFullData.m2,  'switzerland-year-select'); buildBrush('switzerland', swissFullData.m2);  redrawSwiss();  renderPurchasingPowerCard('switzerland-pp',  cpiData.switzerland); renderInflationCard('switzerland-pp',  cpiData.switzerland); if (gdpData?.switzerland) renderGdpCard('switzerland-pp2',  gdpData.switzerland); }
+    if (usaFullData)    { buildYearDropdown(usaFullData.m2,    'usa-year-select');         buildBrush('usa',         usaFullData.m2);    redrawUsa();    renderPurchasingPowerCard('usa-pp',          cpiData.usa);         renderInflationCard('usa-pp',          cpiData.usa);         if (gdpData?.usa)         renderGdpCard('usa-pp2',          gdpData.usa);         }
     updateHeroAmount();
   }
 
@@ -1042,11 +1047,11 @@
     renderGdpChart('norway-gdp-chart',      gdpData.norway,      'norway-gdp-title',      'Norway',      norwayFilter, norwayGdpChart, v => norwayGdpChart = v);
     renderGdpChart('switzerland-gdp-chart', gdpData.switzerland, 'switzerland-gdp-title', 'Switzerland', swissFilter,  swissGdpChart,  v => swissGdpChart  = v);
     renderGdpChart('usa-gdp-chart',         gdpData.usa,         'usa-gdp-title',         'USA',         usaFilter,    usaGdpChart,    v => usaGdpChart    = v);
-    renderGdpCard('ecb-pp',         gdpData.ecb);
-    renderGdpCard('riksbank-pp',    gdpData.riksbank);
-    renderGdpCard('norway-pp',      gdpData.norway);
-    renderGdpCard('switzerland-pp', gdpData.switzerland);
-    renderGdpCard('usa-pp',         gdpData.usa);
+    renderGdpCard('ecb-pp2',         gdpData.ecb);
+    renderGdpCard('riksbank-pp2',    gdpData.riksbank);
+    renderGdpCard('norway-pp2',      gdpData.norway);
+    renderGdpCard('switzerland-pp2', gdpData.switzerland);
+    renderGdpCard('usa-pp2',         gdpData.usa);
   }
 
   async function loadGDP() {
