@@ -84,7 +84,13 @@
     </div>
     <div class="source">Source: ECB Data Portal — data-api.ecb.europa.eu</div>
     <div class="chart-container">
-      <div class="chart-header"><div class="chart-title" id="ecb-gdp-title">GDP Growth — Year on Year (%)</div></div>
+      <div class="chart-header">
+        <div class="chart-title" id="ecb-gdp-title">GDP Growth — Year on Year (%)</div>
+        <div class="time-filters">
+          <button class="tf gdp-tf" onclick="setGdpFilter('ecb','range',20,this)">5Y</button>
+          <button class="tf gdp-tf active" onclick="setGdpFilter('ecb','all',null,this)">All</button>
+        </div>
+      </div>
       <div class="chart-wrap"><canvas id="ecb-gdp-chart"></canvas></div>
     </div>
   </div>
@@ -106,7 +112,13 @@
     </div>
     <div class="source">Source: Sveriges Riksbank via Statistics Sweden (SCB)</div>
     <div class="chart-container">
-      <div class="chart-header"><div class="chart-title" id="riksbank-gdp-title">GDP Growth — Year on Year (%)</div></div>
+      <div class="chart-header">
+        <div class="chart-title" id="riksbank-gdp-title">GDP Growth — Year on Year (%)</div>
+        <div class="time-filters">
+          <button class="tf gdp-tf" onclick="setGdpFilter('riksbank','range',20,this)">5Y</button>
+          <button class="tf gdp-tf active" onclick="setGdpFilter('riksbank','all',null,this)">All</button>
+        </div>
+      </div>
       <div class="chart-wrap"><canvas id="riksbank-gdp-chart"></canvas></div>
     </div>
   </div>
@@ -128,7 +140,13 @@
     </div>
     <div class="source">Source: Statistics Norway (SSB) — data.ssb.no</div>
     <div class="chart-container">
-      <div class="chart-header"><div class="chart-title" id="norway-gdp-title">GDP Growth — Year on Year (%)</div></div>
+      <div class="chart-header">
+        <div class="chart-title" id="norway-gdp-title">GDP Growth — Year on Year (%)</div>
+        <div class="time-filters">
+          <button class="tf gdp-tf" onclick="setGdpFilter('norway','range',20,this)">5Y</button>
+          <button class="tf gdp-tf active" onclick="setGdpFilter('norway','all',null,this)">All</button>
+        </div>
+      </div>
       <div class="chart-wrap"><canvas id="norway-gdp-chart"></canvas></div>
     </div>
 </div>
@@ -149,7 +167,13 @@
     </div>
     <div class="source">Source: Federal Reserve via FRED — api.stlouisfed.org</div>
     <div class="chart-container">
-      <div class="chart-header"><div class="chart-title" id="usa-gdp-title">GDP Growth — Year on Year (%)</div></div>
+      <div class="chart-header">
+        <div class="chart-title" id="usa-gdp-title">GDP Growth — Year on Year (%)</div>
+        <div class="time-filters">
+          <button class="tf gdp-tf" onclick="setGdpFilter('usa','range',20,this)">5Y</button>
+          <button class="tf gdp-tf active" onclick="setGdpFilter('usa','all',null,this)">All</button>
+        </div>
+      </div>
       <div class="chart-wrap"><canvas id="usa-gdp-chart"></canvas></div>
     </div>
   </div>
@@ -171,7 +195,13 @@
     </div>
     <div class="source">Source: Swiss National Bank (SNB) — data.snb.ch</div>
     <div class="chart-container">
-      <div class="chart-header"><div class="chart-title" id="switzerland-gdp-title">GDP Growth — Year on Year (%)</div></div>
+      <div class="chart-header">
+        <div class="chart-title" id="switzerland-gdp-title">GDP Growth — Year on Year (%)</div>
+        <div class="time-filters">
+          <button class="tf gdp-tf" onclick="setGdpFilter('switzerland','range',20,this)">5Y</button>
+          <button class="tf gdp-tf active" onclick="setGdpFilter('switzerland','all',null,this)">All</button>
+        </div>
+      </div>
       <div class="chart-wrap"><canvas id="switzerland-gdp-chart"></canvas></div>
     </div>
   </div>
@@ -236,7 +266,6 @@
     document.querySelectorAll('#ecb-years .yf').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     if (ecbFullData) redrawEcb();
-    if (gdpData) renderGdpChart('ecb-gdp-chart', gdpData.ecb, 'ecb-gdp-title', 'Euro Area', ecbFilter, ecbGdpChart, v => ecbGdpChart = v);
   }
 
   function setRiksFilter(mode, value, btn) {
@@ -245,7 +274,6 @@
     document.querySelectorAll('#riksbank-years .yf').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     if (riksFullData) redrawRiks();
-    if (gdpData) renderGdpChart('riksbank-gdp-chart', gdpData.riksbank, 'riksbank-gdp-title', 'Sweden', riksFilter, riksGdpChart, v => riksGdpChart = v);
   }
 
   function setNorwayFilter(mode, value, btn) {
@@ -254,7 +282,6 @@
     document.querySelectorAll('#norway-years .yf').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     if (norwayFullData) redrawNorway();
-    if (gdpData) renderGdpChart('norway-gdp-chart', gdpData.norway, 'norway-gdp-title', 'Norway', norwayFilter, norwayGdpChart, v => norwayGdpChart = v);
   }
 
   function setEcbYear(year, btn) {
@@ -263,7 +290,6 @@
     document.querySelectorAll('#ecb-years .yf').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     if (ecbFullData) redrawEcb();
-    if (gdpData) renderGdpChart('ecb-gdp-chart', gdpData.ecb, 'ecb-gdp-title', 'Euro Area', ecbFilter, ecbGdpChart, v => ecbGdpChart = v);
   }
 
   function setRiksYear(year, btn) {
@@ -272,7 +298,6 @@
     document.querySelectorAll('#riksbank-years .yf').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     if (riksFullData) redrawRiks();
-    if (gdpData) renderGdpChart('riksbank-gdp-chart', gdpData.riksbank, 'riksbank-gdp-title', 'Sweden', riksFilter, riksGdpChart, v => riksGdpChart = v);
   }
 
   function setNorwayYear(year, btn) {
@@ -281,7 +306,6 @@
     document.querySelectorAll('#norway-years .yf').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     if (norwayFullData) redrawNorway();
-    if (gdpData) renderGdpChart('norway-gdp-chart', gdpData.norway, 'norway-gdp-title', 'Norway', norwayFilter, norwayGdpChart, v => norwayGdpChart = v);
   }
 
   function setSwissFilter(mode, value, btn) {
@@ -290,7 +314,6 @@
     document.querySelectorAll('#switzerland-years .yf').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     if (swissFullData) redrawSwiss();
-    if (gdpData) renderGdpChart('switzerland-gdp-chart', gdpData.switzerland, 'switzerland-gdp-title', 'Switzerland', swissFilter, swissGdpChart, v => swissGdpChart = v);
   }
 
   function setSwissYear(year, btn) {
@@ -299,7 +322,6 @@
     document.querySelectorAll('#switzerland-years .yf').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     if (swissFullData) redrawSwiss();
-    if (gdpData) renderGdpChart('switzerland-gdp-chart', gdpData.switzerland, 'switzerland-gdp-title', 'Switzerland', swissFilter, swissGdpChart, v => swissGdpChart = v);
   }
 
   function setUsaFilter(mode, value, btn) {
@@ -308,7 +330,6 @@
     document.querySelectorAll('#usa-years .yf').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     if (usaFullData) redrawUsa();
-    if (gdpData) renderGdpChart('usa-gdp-chart', gdpData.usa, 'usa-gdp-title', 'USA', usaFilter, usaGdpChart, v => usaGdpChart = v);
   }
 
   function setUsaYear(year, btn) {
@@ -317,7 +338,6 @@
     document.querySelectorAll('#usa-years .yf').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
     if (usaFullData) redrawUsa();
-    if (gdpData) renderGdpChart('usa-gdp-chart', gdpData.usa, 'usa-gdp-title', 'USA', usaFilter, usaGdpChart, v => usaGdpChart = v);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -626,6 +646,19 @@
 
   let gdpData = null;
   let ecbGdpChart = null, riksGdpChart = null, norwayGdpChart = null, swissGdpChart = null, usaGdpChart = null;
+  const gdpFilters = { ecb: {mode:'all'}, riksbank: {mode:'all'}, norway: {mode:'all'}, switzerland: {mode:'all'}, usa: {mode:'all'} };
+
+  function setGdpFilter(country, mode, value, btn) {
+    gdpFilters[country] = { mode, value };
+    const view = country === 'riksbank' ? 'riksbank' : country === 'switzerland' ? 'switzerland' : country;
+    document.querySelectorAll('#' + view + '-view .gdp-tf').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if (!gdpData || !gdpData[country]) return;
+    const chartMap = { ecb: [ecbGdpChart, v => ecbGdpChart = v], riksbank: [riksGdpChart, v => riksGdpChart = v], norway: [norwayGdpChart, v => norwayGdpChart = v], switzerland: [swissGdpChart, v => swissGdpChart = v], usa: [usaGdpChart, v => usaGdpChart = v] };
+    const labelMap = { ecb: 'Euro Area', riksbank: 'Sweden', norway: 'Norway', switzerland: 'Switzerland', usa: 'USA' };
+    const [existing, setter] = chartMap[country];
+    renderGdpChart(country + '-gdp-chart', gdpData[country], country + '-gdp-title', labelMap[country], gdpFilters[country], existing, setter);
+  }
 
   function renderGdpChart(canvasId, series, titleId, country, filter, existing, setter) {
     if (!series || !series.length) return;
@@ -667,11 +700,11 @@
 
   function tryRenderAllGdp() {
     if (!gdpData) return;
-    if (ecbFullData)    renderGdpChart('ecb-gdp-chart',         gdpData.ecb,         'ecb-gdp-title',         'Euro Area',   ecbFilter,   ecbGdpChart,    v => ecbGdpChart    = v);
-    if (riksFullData)   renderGdpChart('riksbank-gdp-chart',    gdpData.riksbank,    'riksbank-gdp-title',    'Sweden',      riksFilter,  riksGdpChart,   v => riksGdpChart   = v);
-    if (norwayFullData) renderGdpChart('norway-gdp-chart',      gdpData.norway,      'norway-gdp-title',      'Norway',      norwayFilter,norwayGdpChart, v => norwayGdpChart = v);
-    if (swissFullData)  renderGdpChart('switzerland-gdp-chart', gdpData.switzerland, 'switzerland-gdp-title', 'Switzerland', swissFilter, swissGdpChart,  v => swissGdpChart  = v);
-    if (usaFullData)    renderGdpChart('usa-gdp-chart',         gdpData.usa,         'usa-gdp-title',         'USA',         usaFilter,   usaGdpChart,    v => usaGdpChart    = v);
+    renderGdpChart('ecb-gdp-chart',         gdpData.ecb,         'ecb-gdp-title',         'Euro Area',   gdpFilters.ecb,         ecbGdpChart,    v => ecbGdpChart    = v);
+    renderGdpChart('riksbank-gdp-chart',    gdpData.riksbank,    'riksbank-gdp-title',    'Sweden',      gdpFilters.riksbank,    riksGdpChart,   v => riksGdpChart   = v);
+    renderGdpChart('norway-gdp-chart',      gdpData.norway,      'norway-gdp-title',      'Norway',      gdpFilters.norway,      norwayGdpChart, v => norwayGdpChart = v);
+    renderGdpChart('switzerland-gdp-chart', gdpData.switzerland, 'switzerland-gdp-title', 'Switzerland', gdpFilters.switzerland, swissGdpChart,  v => swissGdpChart  = v);
+    renderGdpChart('usa-gdp-chart',         gdpData.usa,         'usa-gdp-title',         'USA',         gdpFilters.usa,         usaGdpChart,    v => usaGdpChart    = v);
   }
 
   async function loadGDP() {
