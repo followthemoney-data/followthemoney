@@ -99,10 +99,9 @@
     .annotation-tooltip p { margin: 0; color: #bbb; font-size: 12px; }
     .money-cols { display: flex; gap: 8px; margin: 10px 0 4px; }
     .money-col { flex: 1; min-width: 0; }
-    .money-col-desc { font-size: 11px; color: #888; line-height: 1.4; margin-bottom: 8px; }
-    .money-col-label { font-size: 11px; font-weight: 700; color: #888; margin-bottom: 2px; }
-    .money-col-value { font-size: 17px; font-weight: 600; color: #1a1a1a; white-space: nowrap; }
-    .money-col-growth { font-size: 11px; margin-top: 2px; }
+    .money-col-label { font-size: 14px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+    .money-col-desc { font-size: 12px; color: #888; line-height: 1.5; margin-bottom: 8px; }
+    .money-col-growth { font-size: 12px; margin-top: 4px; }
   @media (max-width: 640px) {
     header { padding: 3rem 1.25rem 2.5rem; }
     header h1 { letter-spacing: -1px; }
@@ -804,7 +803,7 @@
 
     function colHTML(label, key, series) {
       const desc = CARD_DESCS[key] || '';
-      if (!series || !series.length) return `<div class="money-col"><div class="money-col-desc">${desc}</div><div class="money-col-label">${label}</div><div class="money-col-value">—</div></div>`;
+      if (!series || !series.length) return `<div class="money-col"><div class="money-col-label">${label}</div><div class="money-col-desc">${desc}</div><div class="card-value">—</div></div>`;
       const latest = series[series.length - 1];
       const val = (latest.value / divisor).toFixed(1);
       let growth = '';
@@ -814,9 +813,9 @@
         growth = `<div class="money-col-growth ${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '▲' : '▼'} ${Math.abs(mom).toFixed(2)}%</div>`;
       }
       return `<div class="money-col">
-        <div class="money-col-desc">${desc}</div>
         <div class="money-col-label">${label}</div>
-        <div class="money-col-value">${val}T</div>
+        <div class="money-col-desc">${desc}</div>
+        <div class="card-value">${val}T</div>
         ${growth}
       </div>`;
     }
