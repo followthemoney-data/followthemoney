@@ -626,7 +626,7 @@
     card.className = 'card pp-card';
     card.innerHTML = `
       <div class="card-label">Purchasing Power</div>
-      <div class="card-desc">How much your currency can actually buy, compared to ${baseCpi.period.slice(0,4)}. Calculated by inverting CPI — when money supply grows faster than the economy, prices rise and this number falls.</div>
+      <div class="card-desc">CPI (Consumer Price Index) is an official government measurement that tracks monthly price changes across a basket of everyday goods — groceries, rent, energy, healthcare, and transport. It is published by statistical agencies such as Eurostat, the U.S. Bureau of Labor Statistics, and national statistics offices. This card inverts CPI to show purchasing power: when prices rise, this number falls. The lower it is, the less your money buys compared to ${baseCpi.period.slice(0,4)}.</div>
       <div class="card-value">${latest.value.toFixed(1)}</div>
       <div class="card-unit">Index · ${baseCpi.period.slice(0,4)} = 100 · ${latest.period}</div>
       ${growthHTML(ppSeries)}
