@@ -665,10 +665,11 @@ async function fetchDebtFromIMF() {
       const perSecond = (debt1 - debt0) * 1e9 / (365.25 * 24 * 3600);
 
       result[key] = {
-        value:     Math.round(debt1 * 1e9),   // USD
+        value:     Math.round(debt1 * 1e9),
         gdpRatio:  +debtPct[y1].toFixed(1),
         perSecond: +perSecond.toFixed(2),
         period:    String(y1),
+        series:    years.map(y => ({ period: String(y), value: +debtPct[y].toFixed(1) })),
       };
     } catch (_) {
       result[key] = null;
