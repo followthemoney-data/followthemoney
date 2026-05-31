@@ -501,5 +501,50 @@ app.get('/api/usa', async (req, res) => {
   }
 });
 
+// ─── USA seed endpoint ────────────────────────────────────────────────────────
+// Hit this once to pre-populate Redis with the full FRED history.
+// After seeding, /api/usa serves instantly from cache.
+
+app.get('/api/usa-seed', async (req, res) => {
+  try {
+    const BASE = 'https://fred.stlouisfed.org/graph/fredgraph.csv';
+
+    async function fetchSeries(seriesId) {
+      const url = `${BASE}?id=${seriesId}`;
+      const r = await fetch(url, {
+        headers: { 'User-Agent': 'followthemoney/1.0 (thefakeeconomy.com)' }
+      });
+      if (!r.ok) throw new Error(`FRED HTTP ${r.status} for ${seriesId}`);
+      const text = await r.text();
+      const lines = text.trim().split('\n');
+      return lines.slice(1)
+        .map(line => {
+          const [date, value] = line.split(',');
+          const v = parseFloat(value);
+          return date && !isNaN(v) ? { period: date.slice(0, 7), value: v } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.period.localeCompare(b.period));
+    }
+
+    const [m1, m2] = await Promise.all([fetchSeries('M1SL'), fetchSeries('M2SL')]);
+    if (!m2.length) throw new Error('No data returned from FRED');
+
+    const snapshot = { m1, m2 };
+    await redis.set('usa:snapshot', JSON.stringify(snapshot));
+    await redis.set('usa:fred_checked', '1', { ex: 86400 });
+
+    res.json({
+      success: true,
+      message: `USA seed complete. Stored ${m1.length} M1 and ${m2.length} M2 periods in Redis.`,
+      firstPeriod: m2[0]?.period,
+      lastPeriod: m2[m2.length - 1]?.period,
+    });
+  } catch (e) {
+    console.error('USA seed error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Server running on port ' + PORT));
