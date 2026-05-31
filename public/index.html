@@ -84,6 +84,10 @@
     .brush-tick-wrap { position: absolute; bottom: 0; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
     .brush-tick-line { width: 1px; height: 10px; background: #bbb; margin-bottom: 3px; flex-shrink: 0; }
     .brush-tick-label { font-size: 10px; color: #777; white-space: nowrap; line-height: 1; }
+    .show-more-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #999; font-size: 13px; padding: 0.9rem 0 0.25rem; border-top: 1px solid #f0f0f0; margin-top: 0.75rem; user-select: none; }
+    .show-more-toggle:hover { color: #444; }
+    .extra-charts { display: none; }
+    .extra-charts.open { display: block; }
   @media (max-width: 640px) {
     header { padding: 3rem 1.25rem 2.5rem; }
     header h1 { letter-spacing: -1px; }
@@ -171,14 +175,17 @@
       <div class="chart-wrap"><canvas id="ecb-chart"></canvas></div>
       <div class="brush-wrap" id="ecb-brush"></div>
       <div class="source">Money supply: ECB Data Portal — data-api.ecb.europa.eu · Purchasing power: Eurostat HICP via FRED (CP0000EZ19M086NEST)</div>
-      <div class="chart-section-title" id="ecb-gdp-title">GDP Growth — Year on Year</div>
-      <div class="chart-section-filter" id="ecb-gdp-filter">12 months</div>
-      <div class="chart-wrap"><canvas id="ecb-gdp-chart"></canvas></div>
-      <div class="source">GDP: OECD National Accounts via FRED (CLVMNACSCAB1GQEA19)</div>
-      <div class="chart-section-title" id="ecb-debt-title">Debt-to-GDP Ratio</div>
-      <div class="chart-section-filter" id="ecb-debt-filter">12 months</div>
-      <div class="chart-wrap"><canvas id="ecb-debt-chart"></canvas></div>
-      <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      <div class="show-more-toggle" onclick="toggleExtra('ecb-extra', this)">▾ Show GDP &amp; Debt charts</div>
+      <div class="extra-charts" id="ecb-extra">
+        <div class="chart-section-title" id="ecb-gdp-title">GDP Growth — Year on Year</div>
+        <div class="chart-section-filter" id="ecb-gdp-filter">12 months</div>
+        <div class="chart-wrap"><canvas id="ecb-gdp-chart"></canvas></div>
+        <div class="source">GDP: OECD National Accounts via FRED (CLVMNACSCAB1GQEA19)</div>
+        <div class="chart-section-title" id="ecb-debt-title">Debt-to-GDP Ratio</div>
+        <div class="chart-section-filter" id="ecb-debt-filter">12 months</div>
+        <div class="chart-wrap"><canvas id="ecb-debt-chart"></canvas></div>
+        <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      </div>
     </div>
   </div>
 
@@ -204,14 +211,17 @@
       <div class="chart-wrap"><canvas id="riksbank-chart"></canvas></div>
       <div class="brush-wrap" id="riksbank-brush"></div>
       <div class="source">Money supply: Sveriges Riksbank via Statistics Sweden (SCB) · Purchasing power: Eurostat HICP via FRED (CP0000SEM086NEST)</div>
-      <div class="chart-section-title" id="riksbank-gdp-title">GDP Growth — Year on Year</div>
-      <div class="chart-section-filter" id="riksbank-gdp-filter">12 months</div>
-      <div class="chart-wrap"><canvas id="riksbank-gdp-chart"></canvas></div>
-      <div class="source">GDP: OECD National Accounts via FRED (CLVMNACSCAB1GQSE)</div>
-      <div class="chart-section-title" id="riksbank-debt-title">Debt-to-GDP Ratio</div>
-      <div class="chart-section-filter" id="riksbank-debt-filter">12 months</div>
-      <div class="chart-wrap"><canvas id="riksbank-debt-chart"></canvas></div>
-      <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      <div class="show-more-toggle" onclick="toggleExtra('riksbank-extra', this)">▾ Show GDP &amp; Debt charts</div>
+      <div class="extra-charts" id="riksbank-extra">
+        <div class="chart-section-title" id="riksbank-gdp-title">GDP Growth — Year on Year</div>
+        <div class="chart-section-filter" id="riksbank-gdp-filter">12 months</div>
+        <div class="chart-wrap"><canvas id="riksbank-gdp-chart"></canvas></div>
+        <div class="source">GDP: OECD National Accounts via FRED (CLVMNACSCAB1GQSE)</div>
+        <div class="chart-section-title" id="riksbank-debt-title">Debt-to-GDP Ratio</div>
+        <div class="chart-section-filter" id="riksbank-debt-filter">12 months</div>
+        <div class="chart-wrap"><canvas id="riksbank-debt-chart"></canvas></div>
+        <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      </div>
     </div>
   </div>
 
@@ -237,14 +247,17 @@
       <div class="chart-wrap"><canvas id="norway-chart"></canvas></div>
       <div class="brush-wrap" id="norway-brush"></div>
       <div class="source">Money supply: Statistics Norway (SSB) — data.ssb.no · Purchasing power: OECD MEI via FRED (NORCPIALLMINMEI)</div>
-      <div class="chart-section-title" id="norway-gdp-title">GDP Growth — Year on Year</div>
-      <div class="chart-section-filter" id="norway-gdp-filter">12 months</div>
-      <div class="chart-wrap"><canvas id="norway-gdp-chart"></canvas></div>
-      <div class="source">GDP: OECD National Accounts via FRED (CLVMNACSCAB1GQNO)</div>
-      <div class="chart-section-title" id="norway-debt-title">Debt-to-GDP Ratio</div>
-      <div class="chart-section-filter" id="norway-debt-filter">12 months</div>
-      <div class="chart-wrap"><canvas id="norway-debt-chart"></canvas></div>
-      <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      <div class="show-more-toggle" onclick="toggleExtra('norway-extra', this)">▾ Show GDP &amp; Debt charts</div>
+      <div class="extra-charts" id="norway-extra">
+        <div class="chart-section-title" id="norway-gdp-title">GDP Growth — Year on Year</div>
+        <div class="chart-section-filter" id="norway-gdp-filter">12 months</div>
+        <div class="chart-wrap"><canvas id="norway-gdp-chart"></canvas></div>
+        <div class="source">GDP: OECD National Accounts via FRED (CLVMNACSCAB1GQNO)</div>
+        <div class="chart-section-title" id="norway-debt-title">Debt-to-GDP Ratio</div>
+        <div class="chart-section-filter" id="norway-debt-filter">12 months</div>
+        <div class="chart-wrap"><canvas id="norway-debt-chart"></canvas></div>
+        <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      </div>
     </div>
   </div>
   <!-- USA view -->
@@ -269,14 +282,17 @@
       <div class="chart-wrap"><canvas id="usa-chart"></canvas></div>
       <div class="brush-wrap" id="usa-brush"></div>
       <div class="source">Money supply: Federal Reserve via FRED (M1SL, M2SL) · Purchasing power: BLS CPI-U via FRED (CPIAUCSL)</div>
-      <div class="chart-section-title" id="usa-gdp-title">GDP Growth — Year on Year</div>
-      <div class="chart-section-filter" id="usa-gdp-filter">12 months</div>
-      <div class="chart-wrap"><canvas id="usa-gdp-chart"></canvas></div>
-      <div class="source">GDP: OECD National Accounts via FRED (GDPC1)</div>
-      <div class="chart-section-title" id="usa-debt-title">Debt-to-GDP Ratio</div>
-      <div class="chart-section-filter" id="usa-debt-filter">12 months</div>
-      <div class="chart-wrap"><canvas id="usa-debt-chart"></canvas></div>
-      <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      <div class="show-more-toggle" onclick="toggleExtra('usa-extra', this)">▾ Show GDP &amp; Debt charts</div>
+      <div class="extra-charts" id="usa-extra">
+        <div class="chart-section-title" id="usa-gdp-title">GDP Growth — Year on Year</div>
+        <div class="chart-section-filter" id="usa-gdp-filter">12 months</div>
+        <div class="chart-wrap"><canvas id="usa-gdp-chart"></canvas></div>
+        <div class="source">GDP: OECD National Accounts via FRED (GDPC1)</div>
+        <div class="chart-section-title" id="usa-debt-title">Debt-to-GDP Ratio</div>
+        <div class="chart-section-filter" id="usa-debt-filter">12 months</div>
+        <div class="chart-wrap"><canvas id="usa-debt-chart"></canvas></div>
+        <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      </div>
     </div>
   </div>
 
@@ -302,14 +318,17 @@
       <div class="chart-wrap"><canvas id="switzerland-chart"></canvas></div>
       <div class="brush-wrap" id="switzerland-brush"></div>
       <div class="source">Money supply: Swiss National Bank (SNB) — data.snb.ch · Purchasing power: Eurostat HICP via FRED (CP0000CHM086NEST)</div>
-      <div class="chart-section-title" id="switzerland-gdp-title">GDP Growth — Year on Year</div>
-      <div class="chart-section-filter" id="switzerland-gdp-filter">12 months</div>
-      <div class="chart-wrap"><canvas id="switzerland-gdp-chart"></canvas></div>
-      <div class="source">GDP: OECD National Accounts via FRED (CLVMNACSCAB1GQCH)</div>
-      <div class="chart-section-title" id="switzerland-debt-title">Debt-to-GDP Ratio</div>
-      <div class="chart-section-filter" id="switzerland-debt-filter">12 months</div>
-      <div class="chart-wrap"><canvas id="switzerland-debt-chart"></canvas></div>
-      <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      <div class="show-more-toggle" onclick="toggleExtra('switzerland-extra', this)">▾ Show GDP &amp; Debt charts</div>
+      <div class="extra-charts" id="switzerland-extra">
+        <div class="chart-section-title" id="switzerland-gdp-title">GDP Growth — Year on Year</div>
+        <div class="chart-section-filter" id="switzerland-gdp-filter">12 months</div>
+        <div class="chart-wrap"><canvas id="switzerland-gdp-chart"></canvas></div>
+        <div class="source">GDP: OECD National Accounts via FRED (CLVMNACSCAB1GQCH)</div>
+        <div class="chart-section-title" id="switzerland-debt-title">Debt-to-GDP Ratio</div>
+        <div class="chart-section-filter" id="switzerland-debt-filter">12 months</div>
+        <div class="chart-wrap"><canvas id="switzerland-debt-chart"></canvas></div>
+        <div class="source">Government debt: IMF World Economic Outlook (GGXWDG_NGDP)</div>
+      </div>
     </div>
   </div>
 
@@ -320,6 +339,20 @@
 </footer>
 
 <script>
+  function toggleExtra(id, btn) {
+    const el = document.getElementById(id);
+    const open = el.classList.toggle('open');
+    btn.textContent = open ? '▴ Hide GDP & Debt charts' : '▾ Show GDP & Debt charts';
+    if (open) {
+      const country = id.replace('-extra', '');
+      if (country === 'ecb')         { redrawEcb(); }
+      else if (country === 'riksbank')    { redrawRiks(); }
+      else if (country === 'norway')      { redrawNorway(); }
+      else if (country === 'switzerland') { redrawSwiss(); }
+      else if (country === 'usa')         { redrawUsa(); }
+    }
+  }
+
   function toggleDesc(btn) {
     const desc = btn.previousElementSibling;
     const expanded = desc.classList.toggle('expanded');
