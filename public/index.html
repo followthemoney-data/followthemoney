@@ -235,6 +235,38 @@
     if (norwayFullData) redrawNorway();
   }
 
+  function setSwissFilter(mode, value, btn) {
+    swissFilter = { mode, value };
+    document.querySelectorAll('#switzerland-view .tf').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#switzerland-years .yf').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if (swissFullData) redrawSwiss();
+  }
+
+  function setSwissYear(year, btn) {
+    swissFilter = { mode: 'year', value: year };
+    document.querySelectorAll('#switzerland-view .tf').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#switzerland-years .yf').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if (swissFullData) redrawSwiss();
+  }
+
+  function setUsaFilter(mode, value, btn) {
+    usaFilter = { mode, value };
+    document.querySelectorAll('#usa-view .tf').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#usa-years .yf').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if (usaFullData) redrawUsa();
+  }
+
+  function setUsaYear(year, btn) {
+    usaFilter = { mode: 'year', value: year };
+    document.querySelectorAll('#usa-view .tf').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('#usa-years .yf').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    if (usaFullData) redrawUsa();
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   function applyFilter(series, filter) {
