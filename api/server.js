@@ -677,16 +677,13 @@ app.get('/api/debt-debug', async (req, res) => {
     const r2 = await fetch(`${BASE}/NGDPD`);
     const d1 = await r1.json();
     const d2 = await r2.json();
-    const codes = ['USA', 'XM', 'SWE', 'NOR', 'CHE'];
+    const codes = ['USA', 'XM', 'SWE', 'NOR', 'CHE', 'U2', 'EUZ', 'EU', 'EUR', 'EA', 'EA19', 'EA20', 'EMU'];
     const debtCheck = {};
-    const gdpCheck = {};
     for (const c of codes) {
       const dp = d1.values?.GGXWDG_NGDP?.[c];
-      const gp = d2.values?.NGDPD?.[c];
-      debtCheck[c] = dp ? Object.keys(dp).slice(-3) + ' → ' + Object.values(dp).slice(-1) : 'MISSING';
-      gdpCheck[c]  = gp ? Object.keys(gp).slice(-3) + ' → ' + Object.values(gp).slice(-1) : 'MISSING';
+      debtCheck[c] = dp ? 'HAS DATA — last year: ' + Object.keys(dp).sort().slice(-1)[0] : 'MISSING';
     }
-    res.json({ keys1: Object.keys(d1), keys2: Object.keys(d2), debtCheck, gdpCheck });
+    res.json({ debtCheck });
   } catch(e) {
     res.json({ error: e.message });
   }
