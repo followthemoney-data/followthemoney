@@ -1044,20 +1044,28 @@
     container.appendChild(card);
   }
 
-  function statusDot(status) {
-    return `<span class="card-status ${status}"></span>`;
+  function statusDot(status, title) {
+    return `<span class="card-status ${status}" title="${title}"></span>`;
   }
   function inflationDot(rate) {
-    return statusDot(rate > 5 || rate < 0 ? 'red' : rate > 2.5 ? 'amber' : 'green');
+    if (rate > 5 || rate < 0) return statusDot('red',   'High inflation — well above the 2% central bank target (or deflation)');
+    if (rate > 2.5)           return statusDot('amber', 'Above the 2% central bank target');
+    return                           statusDot('green', 'At or near the 2% central bank target');
   }
   function ppDot(pp) {
-    return statusDot(pp < 75 ? 'red' : pp < 88 ? 'amber' : 'green');
+    if (pp < 75) return statusDot('red',   'Significant loss — your money buys more than 25% less than in 2000');
+    if (pp < 88) return statusDot('amber', 'Moderate loss — your money buys 12–25% less than in 2000');
+    return              statusDot('green', 'Relatively stable — less than 12% lost since 2000');
   }
   function gdpDot(growth) {
-    return statusDot(growth < -1 ? 'red' : growth < 0.5 ? 'amber' : 'green');
+    if (growth < -1)  return statusDot('red',   'Recession territory — economy contracting');
+    if (growth < 0.5) return statusDot('amber', 'Stagnating — very low or no growth');
+    return                   statusDot('green', 'Economy growing');
   }
   function debtDot(ratio) {
-    return statusDot(ratio > 90 ? 'red' : ratio > 60 ? 'amber' : 'green');
+    if (ratio > 90) return statusDot('red',   'High debt — above 90% of GDP');
+    if (ratio > 60) return statusDot('amber', 'Above the 60% of GDP Maastricht threshold');
+    return                 statusDot('green', 'Below the 60% of GDP Maastricht threshold');
   }
 
   function renderCountrySummary(containerId, bank, moneySeries, cpiSeries) {
