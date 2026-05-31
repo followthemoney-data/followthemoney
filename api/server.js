@@ -514,6 +514,104 @@ app.get('/api/usa-seed', async (req, res) => {
   }
 });
 
+// ─── GDP endpoint ─────────────────────────────────────────────────────────────
+// Fetches quarterly real GDP levels from FRED, calculates year-on-year growth %.
+// Series (OECD National Accounts via FRED):
+//   USA:         GDPC1              (Real GDP, billions 2017 USD, quarterly SA)
+//   Euro Area:   CLVMNACSCAB1GQEA19 (Real GDP Euro Area 19, volume index)
+//   Sweden:      CLVMNACSCAB1GQSE
+//   Norway:      CLVMNACSCAB1GQNO
+//   Switzerland: CLVMNACSCAB1GQCH
+// Redis keys: gdp:snapshot, gdp:checked (24h TTL)
+
+async function fetchGdpFromFred() {
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) throw new Error('FRED_API_KEY not set');
+  const BASE = 'https://api.stlouisfed.org/fred/series/observations';
+
+  async function fetchSeries(seriesId) {
+    const url = `${BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=1960-01-01`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`FRED HTTP ${r.status} for ${seriesId}`);
+    const data = await r.json();
+    if (data.error_code) throw new Error(`FRED: ${data.error_message}`);
+    return data.observations
+      .filter(o => o.value !== '.')
+      .map(o => ({ period: o.date.slice(0, 7), value: parseFloat(o.value) }))
+      .sort((a, b) => a.period.localeCompare(b.period));
+  }
+
+  function calcYoY(series) {
+    return series
+      .map((d, i) => {
+        if (i < 4) return null;
+        const prev = series[i - 4];
+        return { period: d.period, value: +((d.value - prev.value) / prev.value * 100).toFixed(2) };
+      })
+      .filter(Boolean);
+  }
+
+  const seriesMap = {
+    usa:         'GDPC1',
+    ecb:         'CLVMNACSCAB1GQEA19',
+    riksbank:    'CLVMNACSCAB1GQSE',
+    norway:      'CLVMNACSCAB1GQNO',
+    switzerland: 'CLVMNACSCAB1GQCH',
+  };
+
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const errors = {};
+  const results = {};
+  for (const [key, id] of Object.entries(seriesMap)) {
+    if (Object.keys(results).length > 0) await wait(700);
+    try {
+      results[key] = calcYoY(await fetchSeries(id));
+    } catch (e) {
+      console.error(`GDP fetch failed for ${key} (${id}):`, e.message);
+      results[key] = null;
+      errors[key] = e.message;
+    }
+  }
+  results._errors = errors;
+  return results;
+}
+
+app.get('/api/gdp', async (req, res) => {
+  try {
+    const raw = await redis.get('gdp:snapshot');
+    let snapshot = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
+    const cached = await redis.get('gdp:checked');
+    if (!cached || !snapshot) {
+      snapshot = await fetchGdpFromFred();
+      await redis.set('gdp:snapshot', JSON.stringify(snapshot));
+      await redis.set('gdp:checked', '1', { ex: 86400 });
+    }
+    res.json({ success: true, data: snapshot, source: cached && snapshot ? 'cache' : 'live' });
+  } catch (e) {
+    console.error('GDP error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/api/gdp-seed', async (req, res) => {
+  try {
+    const snapshot = await fetchGdpFromFred();
+    await redis.set('gdp:snapshot', JSON.stringify(snapshot));
+    await redis.set('gdp:checked', '1', { ex: 86400 });
+    const { _errors, ...data } = snapshot;
+    const summary = Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, v
+        ? { periods: v.length, first: v[0]?.period, last: v[v.length - 1]?.period }
+        : { failed: true, error: _errors?.[k] || 'unknown' }
+      ])
+    );
+    res.json({ success: true, message: 'GDP seed complete.', summary });
+  } catch (e) {
+    console.error('GDP seed error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ─── CPI endpoint (purchasing power data via FRED) ───────────────────────────
 // Fetches monthly CPI index for all 5 countries from FRED (same API key as USA).
 // Used by the frontend to calculate purchasing power over time.

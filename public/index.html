@@ -83,6 +83,10 @@
       <div class="chart-wrap"><canvas id="ecb-chart"></canvas></div>
     </div>
     <div class="source">Source: ECB Data Portal — data-api.ecb.europa.eu</div>
+    <div class="chart-container">
+      <div class="chart-header"><div class="chart-title" id="ecb-gdp-title">GDP Growth — Year on Year (%)</div></div>
+      <div class="chart-wrap"><canvas id="ecb-gdp-chart"></canvas></div>
+    </div>
   </div>
 
   <!-- Sweden view -->
@@ -101,6 +105,10 @@
       <div class="chart-wrap"><canvas id="riksbank-chart"></canvas></div>
     </div>
     <div class="source">Source: Sveriges Riksbank via Statistics Sweden (SCB)</div>
+    <div class="chart-container">
+      <div class="chart-header"><div class="chart-title" id="riksbank-gdp-title">GDP Growth — Year on Year (%)</div></div>
+      <div class="chart-wrap"><canvas id="riksbank-gdp-chart"></canvas></div>
+    </div>
   </div>
 
   <!-- Norway view -->
@@ -119,7 +127,11 @@
       <div class="chart-wrap"><canvas id="norway-chart"></canvas></div>
     </div>
     <div class="source">Source: Statistics Norway (SSB) — data.ssb.no</div>
-  </div>
+    <div class="chart-container">
+      <div class="chart-header"><div class="chart-title" id="norway-gdp-title">GDP Growth — Year on Year (%)</div></div>
+      <div class="chart-wrap"><canvas id="norway-gdp-chart"></canvas></div>
+    </div>
+</div>
   <!-- USA view -->
   <div id="usa-view" style="display:none">
     <div id="usa-cards" class="cards"><div class="loading">Fetching Fed data...</div></div>
@@ -136,6 +148,10 @@
       <div class="chart-wrap"><canvas id="usa-chart"></canvas></div>
     </div>
     <div class="source">Source: Federal Reserve via FRED — api.stlouisfed.org</div>
+    <div class="chart-container">
+      <div class="chart-header"><div class="chart-title" id="usa-gdp-title">GDP Growth — Year on Year (%)</div></div>
+      <div class="chart-wrap"><canvas id="usa-gdp-chart"></canvas></div>
+    </div>
   </div>
 
   <!-- Switzerland view -->
@@ -154,6 +170,10 @@
       <div class="chart-wrap"><canvas id="switzerland-chart"></canvas></div>
     </div>
     <div class="source">Source: Swiss National Bank (SNB) — data.snb.ch</div>
+    <div class="chart-container">
+      <div class="chart-header"><div class="chart-title" id="switzerland-gdp-title">GDP Growth — Year on Year (%)</div></div>
+      <div class="chart-wrap"><canvas id="switzerland-gdp-chart"></canvas></div>
+    </div>
   </div>
 
 </div>
@@ -592,7 +612,72 @@
     }
   }
 
+  // ── GDP ───────────────────────────────────────────────────────────────────
+
+  let gdpData = null;
+  let ecbGdpChart = null, riksGdpChart = null, norwayGdpChart = null, swissGdpChart = null, usaGdpChart = null;
+
+  function renderGdpChart(canvasId, series, titleId, country, existing, setter) {
+    if (!series || !series.length) return;
+    if (existing) existing.destroy();
+    const ctx = document.getElementById(canvasId).getContext('2d');
+    // Show last 10 years (40 quarters) by default
+    const display = series.slice(-40);
+    document.getElementById(titleId).textContent = country + ' GDP Growth — Year on Year (%)';
+    const inst = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: display.map(d => d.period),
+        datasets: [{
+          label: 'GDP Growth YoY',
+          data: display.map(d => d.value),
+          backgroundColor: display.map(d => d.value >= 0 ? '#1D9E7566' : '#D85A3066'),
+          borderColor:     display.map(d => d.value >= 0 ? '#1D9E75'   : '#D85A30'),
+          borderWidth: 1,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => c.parsed.y.toFixed(2) + '%' } }
+        },
+        scales: {
+          x: { ticks: { font: { size: 10 }, maxRotation: 45, maxTicksLimit: 12 } },
+          y: {
+            ticks: { font: { size: 11 }, callback: v => v.toFixed(1) + '%' },
+            grid: { color: ctx => ctx.tick.value === 0 ? '#aaa' : '#eee', lineWidth: ctx => ctx.tick.value === 0 ? 2 : 1 }
+          }
+        }
+      }
+    });
+    setter(inst);
+  }
+
+  function tryRenderAllGdp() {
+    if (!gdpData) return;
+    if (ecbFullData)    renderGdpChart('ecb-gdp-chart',          gdpData.ecb,         'ecb-gdp-title',         'Euro Area', ecbGdpChart,    v => ecbGdpChart    = v);
+    if (riksFullData)   renderGdpChart('riksbank-gdp-chart',     gdpData.riksbank,    'riksbank-gdp-title',    'Sweden',    riksGdpChart,   v => riksGdpChart   = v);
+    if (norwayFullData) renderGdpChart('norway-gdp-chart',       gdpData.norway,      'norway-gdp-title',      'Norway',    norwayGdpChart, v => norwayGdpChart = v);
+    if (swissFullData)  renderGdpChart('switzerland-gdp-chart',  gdpData.switzerland, 'switzerland-gdp-title', 'Switzerland',swissGdpChart, v => swissGdpChart  = v);
+    if (usaFullData)    renderGdpChart('usa-gdp-chart',          gdpData.usa,         'usa-gdp-title',         'USA',       usaGdpChart,    v => usaGdpChart    = v);
+  }
+
+  async function loadGDP() {
+    try {
+      const r = await fetch(API_BASE + '/api/gdp');
+      const json = await r.json();
+      if (!json.success) throw new Error(json.error);
+      gdpData = json.data;
+      tryRenderAllGdp();
+    } catch(e) {
+      console.error('GDP error:', e);
+    }
+  }
+
   loadCPI();
+  loadGDP();
   loadECB();
   loadRiksbank();
   loadNorway();
