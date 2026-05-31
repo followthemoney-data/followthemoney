@@ -22,7 +22,10 @@
     .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 2rem; }
     .card { background: white; border-radius: 12px; padding: 1.25rem; border: 1px solid #eee; }
     .card-label { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
-    .card-desc { font-size: 12px; color: #888; margin-bottom: 8px; line-height: 1.5; }
+    .card-desc { font-size: 12px; color: #888; margin-bottom: 4px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    .card-desc.expanded { display: block; overflow: visible; }
+    .card-expand { background: none; border: none; cursor: pointer; color: #bbb; font-size: 10px; padding: 0; margin-bottom: 8px; display: block; line-height: 1; }
+    .card-expand:hover { color: #555; }
     .card-value { font-size: 28px; font-weight: 600; color: #1a1a1a; }
     .card-unit { font-size: 12px; color: #999; margin-top: 4px; }
     .card-growth { font-size: 12px; margin-top: 8px; }
@@ -264,6 +267,12 @@
 </footer>
 
 <script>
+  function toggleDesc(btn) {
+    const desc = btn.previousElementSibling;
+    const expanded = desc.classList.toggle('expanded');
+    btn.textContent = expanded ? '▴ Less' : '▾ More';
+  }
+
   let debtData = null;
   let debtTicker = null;
   let tickerVal = 0;
@@ -315,6 +324,7 @@
     card.innerHTML = `
       <div class="card-label">National Debt</div>
       <div class="card-desc">Total general government gross debt — all outstanding borrowing by central and local governments combined. Shown in USD equivalent and as a percentage of GDP. Source: IMF World Economic Outlook (annual).</div>
+      <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
       <div class="card-value neg">${symbol}${formatDebtValue(debtInfo.value)}</div>
       <div class="card-unit">${debtInfo.gdpRatio}% of GDP · ${debtInfo.period}</div>
       <div class="card-growth neg">▲ ${perSecFmt} per second</div>
@@ -616,6 +626,7 @@
       return `<div class="card">
         <div class="card-label">${label}</div>
         <div class="card-desc">${CARD_DESCS[key]}</div>
+        <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
         <div class="card-value">${val}T</div>
         <div class="card-unit">${currency} · ${latest.period}</div>
         ${growthHTML(series)}
@@ -781,6 +792,7 @@
     card.innerHTML = `
       <div class="card-label">Purchasing Power</div>
       <div class="card-desc">CPI (Consumer Price Index) is an official government measurement that tracks monthly price changes across a basket of everyday goods — groceries, rent, energy, healthcare, and transport. It is published by statistical agencies such as Eurostat, the U.S. Bureau of Labor Statistics, and national statistics offices. This card inverts CPI to show purchasing power: when prices rise, this number falls. The lower it is, the less your money buys compared to ${baseCpi.period.slice(0,4)}.</div>
+      <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
       <div class="card-value">${latest.value.toFixed(1)}</div>
       <div class="card-unit">Index · ${baseCpi.period.slice(0,4)} = 100 · ${latest.period}</div>
       ${growthHTML(ppSeries)}
@@ -801,6 +813,7 @@
     card.innerHTML = `
       <div class="card-label">Inflation</div>
       <div class="card-desc">Inflation is the rate at which prices are rising right now — measured as the year-on-year percentage change in CPI. Unlike Purchasing Power (which shows the total accumulated erosion since 2000), inflation shows the current speed of price increase. Central banks typically target around 2% as a sign of a healthy, stable economy.</div>
+      <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
       <div class="card-value">${inflation.toFixed(1)}%</div>
       <div class="card-unit">Annual · CPI year-on-year · ${latest.period}</div>
     `;
@@ -819,6 +832,7 @@
     card.innerHTML = `
       <div class="card-label">GDP Growth</div>
       <div class="card-desc">GDP (Gross Domestic Product) is the total value of all goods and services produced in a country. GDP Growth is the year-on-year percentage change — when positive the economy is expanding, when negative for two or more consecutive quarters it is classified as a recession. Data comes from official national accounts published by government statistical agencies.</div>
+      <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
       <div class="card-value ${val >= 0 ? 'pos' : 'neg'}">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</div>
       <div class="card-unit">Quarterly · Year on Year · ${latest.period}</div>
     `;
