@@ -518,6 +518,15 @@
     const latestCpiEntry = cpiSeries ? cpiSeries.filter(d => cpiMap[d.period] != null).slice(-1)[0] : null;
     const latestPP = (cpiBaseVal && latestCpiEntry) ? +((cpiBaseVal / latestCpiEntry.value) * 100).toFixed(1) : null;
 
+    const inflation = hasCpi ? filtered.map(d => {
+      const cpiNow = cpiMap[d.period];
+      if (cpiNow == null) return null;
+      const prevPeriod = (parseInt(d.period.slice(0, 4)) - 1) + '-' + d.period.slice(5, 7);
+      const cpiPrev = cpiMap[prevPeriod];
+      if (cpiPrev == null) return null;
+      return +((cpiNow - cpiPrev) / cpiPrev * 100).toFixed(2);
+    }) : filtered.map(() => null);
+
     return {
       periods: filtered.map(d => d.period),
       moneyIndexed: filtered.map(d => +((d.value / moneyBaseVal) * 100).toFixed(1)),
@@ -526,6 +535,7 @@
           ? +((cpiBaseVal / cpiMap[d.period]) * 100).toFixed(1)
           : null
       ),
+      inflation,
       latestPP,
       baseYear: basePeriod.slice(0, 4),
     };
@@ -544,8 +554,9 @@
       data: {
         labels: overlayData.periods,
         datasets: [
-          { label: moneyLabel,         data: overlayData.moneyIndexed,   borderColor: '#378ADD', backgroundColor: '#378ADD10', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yMoney' },
-          { label: 'Purchasing Power', data: overlayData.purchasingPower, borderColor: '#E8543A', backgroundColor: '#E8543A10', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yPower' }
+          { label: moneyLabel,           data: overlayData.moneyIndexed,    borderColor: '#378ADD', backgroundColor: '#378ADD10', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yMoney' },
+          { label: 'Purchasing Power',   data: overlayData.purchasingPower, borderColor: '#E8543A', backgroundColor: '#E8543A10', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yPower' },
+          { label: 'Inflation (YoY %)',  data: overlayData.inflation,       borderColor: '#F59E0B', backgroundColor: '#F59E0B10', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yInflation', borderDash: [4, 3] }
         ]
       },
       options: {
@@ -553,12 +564,13 @@
         interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(1) } }
+          tooltip: { callbacks: { label: c => c.datasetIndex === 2 ? c.dataset.label + ': ' + c.parsed.y.toFixed(1) + '%' : c.dataset.label + ': ' + c.parsed.y.toFixed(1) } }
         },
         scales: {
           x: { ticks: { font: { size: 11 }, maxRotation: 45, maxTicksLimit: 12 } },
-          yMoney: { type: 'linear', position: 'left',  ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: true, text: 'Money Supply (2000 = 100)',    font: { size: 10 }, color: '#378ADD' } },
-          yPower: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: true, text: 'Purchasing Power (2000 = 100)', font: { size: 10 }, color: '#E8543A' } }
+          yMoney:     { type: 'linear', position: 'left',  ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: true, text: 'Money Supply (2000 = 100)',    font: { size: 10 }, color: '#378ADD' } },
+          yPower:     { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: true, text: 'Purchasing Power (2000 = 100)', font: { size: 10 }, color: '#E8543A' } },
+          yInflation: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, callback: v => v.toFixed(1) + '%' }, title: { display: true, text: 'Inflation YoY (%)', font: { size: 10 }, color: '#F59E0B' } }
         }
       }
     });
@@ -580,9 +592,9 @@
       if (priceRise > 0)      priceText = `prices are ${priceRise}% higher than in ${base}, meaning your money buys ${ppLoss}% less than it did then`;
       else if (priceRise < 0) priceText = `prices are ${Math.abs(priceRise)}% lower than in ${base}, meaning your money actually buys ${Math.abs(ppLoss)}% more`;
       else                    priceText = `prices are roughly the same as in ${base}`;
-      descEl.textContent = `Both lines start at 100 in ${base}. The blue line is money supply, the red line is purchasing power — how far your money actually goes, based on official CPI data. Today purchasing power reads ${pp} — ${priceText}.`;
+      descEl.textContent = `The blue line is money supply (index, ${base} = 100). The red line is purchasing power — how far your money actually goes. The amber dashed line is annual inflation (right axis, %). Today purchasing power reads ${pp} — ${priceText}.`;
     } else {
-      descEl.textContent = `Both lines start at 100 in ${base}. The blue line is money supply, the red line is purchasing power — how far your money actually goes, based on official CPI data.`;
+      descEl.textContent = `The blue line is money supply (index, ${base} = 100). The red line is purchasing power — how far your money goes. The amber dashed line is annual inflation rate (right axis, %).`;
     }
 
     // Custom HTML legend
@@ -594,7 +606,7 @@
       chartWrap.parentNode.insertBefore(legendEl, chartWrap);
     }
     legendEl.innerHTML = '';
-    [{ label: moneyLabel, color: '#378ADD', i: 0 }, { label: 'Purchasing Power', color: '#E8543A', i: 1 }].forEach(({ label, color, i }) => {
+    [{ label: moneyLabel, color: '#378ADD', i: 0 }, { label: 'Purchasing Power', color: '#E8543A', i: 1 }, { label: 'Inflation (YoY %)', color: '#F59E0B', i: 2 }].forEach(({ label, color, i }) => {
       const item = document.createElement('div');
       item.className = 'legend-item';
       item.innerHTML = `<div class="legend-box" style="background:${color}"></div><span>${label}</span>`;
@@ -683,31 +695,31 @@
 
   function redrawEcb() {
     if (!ecbFullData || !cpiData) return;
-    document.getElementById('ecb-chart-title').textContent = 'M2 vs Purchasing Power (EUR) — ' + filterLabel(ecbFilter);
+    document.getElementById('ecb-chart-title').textContent = 'M2, Inflation & Purchasing Power (EUR) — ' + filterLabel(ecbFilter);
     renderOverlayChart('ecb-chart', buildOverlayData(ecbFullData.m2, cpiData.ecb, ecbFilter), 'M2 (EUR)', ecbChart, v => ecbChart = v);
     if (gdpData?.ecb) renderGdpChart('ecb-gdp-chart', gdpData.ecb, 'ecb-gdp-title', 'Euro Area', ecbFilter, ecbGdpChart, v => ecbGdpChart = v);
   }
   function redrawRiks() {
     if (!riksFullData || !cpiData) return;
-    document.getElementById('riksbank-chart-title').textContent = 'M2 vs Purchasing Power (SEK) — ' + filterLabel(riksFilter);
+    document.getElementById('riksbank-chart-title').textContent = 'M2, Inflation & Purchasing Power (SEK) — ' + filterLabel(riksFilter);
     renderOverlayChart('riksbank-chart', buildOverlayData(riksFullData.m2, cpiData.riksbank, riksFilter), 'M2 (SEK)', riksChart, v => riksChart = v);
     if (gdpData?.riksbank) renderGdpChart('riksbank-gdp-chart', gdpData.riksbank, 'riksbank-gdp-title', 'Sweden', riksFilter, riksGdpChart, v => riksGdpChart = v);
   }
   function redrawNorway() {
     if (!norwayFullData || !cpiData) return;
-    document.getElementById('norway-chart-title').textContent = 'M2 vs Purchasing Power (NOK) — ' + filterLabel(norwayFilter);
+    document.getElementById('norway-chart-title').textContent = 'M2, Inflation & Purchasing Power (NOK) — ' + filterLabel(norwayFilter);
     renderOverlayChart('norway-chart', buildOverlayData(norwayFullData.m2, cpiData.norway, norwayFilter), 'M2 (NOK)', norwayChart, v => norwayChart = v);
     if (gdpData?.norway) renderGdpChart('norway-gdp-chart', gdpData.norway, 'norway-gdp-title', 'Norway', norwayFilter, norwayGdpChart, v => norwayGdpChart = v);
   }
   function redrawSwiss() {
     if (!swissFullData || !cpiData) return;
-    document.getElementById('switzerland-chart-title').textContent = 'M2 vs Purchasing Power (CHF) — ' + filterLabel(swissFilter);
+    document.getElementById('switzerland-chart-title').textContent = 'M2, Inflation & Purchasing Power (CHF) — ' + filterLabel(swissFilter);
     renderOverlayChart('switzerland-chart', buildOverlayData(swissFullData.m2, cpiData.switzerland, swissFilter), 'M2 (CHF)', swissChart, v => swissChart = v);
     if (gdpData?.switzerland) renderGdpChart('switzerland-gdp-chart', gdpData.switzerland, 'switzerland-gdp-title', 'Switzerland', swissFilter, swissGdpChart, v => swissGdpChart = v);
   }
   function redrawUsa() {
     if (!usaFullData || !cpiData) return;
-    document.getElementById('usa-chart-title').textContent = 'M2 vs Purchasing Power (USD) — ' + filterLabel(usaFilter);
+    document.getElementById('usa-chart-title').textContent = 'M2, Inflation & Purchasing Power (USD) — ' + filterLabel(usaFilter);
     renderOverlayChart('usa-chart', buildOverlayData(usaFullData.m2, cpiData.usa, usaFilter), 'M2 (USD)', usaChart, v => usaChart = v);
     if (gdpData?.usa) renderGdpChart('usa-gdp-chart', gdpData.usa, 'usa-gdp-title', 'USA', usaFilter, usaGdpChart, v => usaGdpChart = v);
   }
