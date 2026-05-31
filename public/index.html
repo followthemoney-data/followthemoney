@@ -51,6 +51,8 @@
     .explainer h2 { font-size: 16px; font-weight: 600; margin-bottom: 0.75rem; }
     .explainer p { font-size: 16px; color: #666; line-height: 1.7; margin-bottom: 0.5rem; }
     footer { text-align: center; padding: 2rem; color: #bbb; font-size: 12px; }
+    .pp-row { display: flex; gap: 12px; margin-bottom: 2rem; }
+    .pp-row .card { max-width: 260px; }
   </style>
 </head>
 <body>
@@ -77,6 +79,7 @@
   <!-- ECB view -->
   <div id="ecb-view">
     <div id="ecb-cards" class="cards"><div class="loading">Fetching ECB data...</div></div>
+    <div id="ecb-pp" class="pp-row"></div>
     <div class="chart-container">
       <div class="chart-header">
         <div class="chart-title" id="ecb-chart-title">M3 — Money supply trend (EUR)</div>
@@ -106,6 +109,7 @@
   <!-- Sweden view -->
   <div id="riksbank-view" style="display:none">
     <div id="riksbank-cards" class="cards"><div class="loading">Fetching Riksbank data...</div></div>
+    <div id="riksbank-pp" class="pp-row"></div>
     <div class="chart-container">
       <div class="chart-header">
         <div class="chart-title" id="riksbank-chart-title">M3 — Money supply trend (SEK)</div>
@@ -135,6 +139,7 @@
   <!-- Norway view -->
   <div id="norway-view" style="display:none">
     <div id="norway-cards" class="cards"><div class="loading">Fetching SSB data...</div></div>
+    <div id="norway-pp" class="pp-row"></div>
     <div class="chart-container">
       <div class="chart-header">
         <div class="chart-title" id="norway-chart-title">M3 — Money supply trend (NOK)</div>
@@ -163,6 +168,7 @@
   <!-- USA view -->
   <div id="usa-view" style="display:none">
     <div id="usa-cards" class="cards"><div class="loading">Fetching Fed data...</div></div>
+    <div id="usa-pp" class="pp-row"></div>
     <div class="chart-container">
       <div class="chart-header">
         <div class="chart-title" id="usa-chart-title">M2 — Money supply trend (USD)</div>
@@ -192,6 +198,7 @@
   <!-- Switzerland view -->
   <div id="switzerland-view" style="display:none">
     <div id="switzerland-cards" class="cards"><div class="loading">Fetching SNB data...</div></div>
+    <div id="switzerland-pp" class="pp-row"></div>
     <div class="chart-container">
       <div class="chart-header">
         <div class="chart-title" id="switzerland-chart-title">M3 — Money supply trend (CHF)</div>
@@ -552,11 +559,11 @@
 
   function tryRenderAll() {
     if (!cpiData) return;
-    if (ecbFullData)    { buildYearButtons(ecbFullData.m2,    'ecb-years',          'setEcbYear');   redrawEcb();    renderPurchasingPowerCard('ecb-cards',         cpiData.ecb);         }
-    if (riksFullData)   { buildYearButtons(riksFullData.m2,   'riksbank-years',      'setRiksYear');  redrawRiks();   renderPurchasingPowerCard('riksbank-cards',     cpiData.riksbank);    }
-    if (norwayFullData) { buildYearButtons(norwayFullData.m2, 'norway-years',        'setNorwayYear');redrawNorway(); renderPurchasingPowerCard('norway-cards',       cpiData.norway);      }
-    if (swissFullData)  { buildYearButtons(swissFullData.m2,  'switzerland-years',   'setSwissYear'); redrawSwiss();  renderPurchasingPowerCard('switzerland-cards',  cpiData.switzerland); }
-    if (usaFullData)    { buildYearButtons(usaFullData.m2,    'usa-years',           'setUsaYear');   redrawUsa();    renderPurchasingPowerCard('usa-cards',          cpiData.usa);         }
+    if (ecbFullData)    { buildYearButtons(ecbFullData.m2,    'ecb-years',          'setEcbYear');   redrawEcb();    renderPurchasingPowerCard('ecb-pp',         cpiData.ecb);         }
+    if (riksFullData)   { buildYearButtons(riksFullData.m2,   'riksbank-years',      'setRiksYear');  redrawRiks();   renderPurchasingPowerCard('riksbank-pp',     cpiData.riksbank);    }
+    if (norwayFullData) { buildYearButtons(norwayFullData.m2, 'norway-years',        'setNorwayYear');redrawNorway(); renderPurchasingPowerCard('norway-pp',       cpiData.norway);      }
+    if (swissFullData)  { buildYearButtons(swissFullData.m2,  'switzerland-years',   'setSwissYear'); redrawSwiss();  renderPurchasingPowerCard('switzerland-pp',  cpiData.switzerland); }
+    if (usaFullData)    { buildYearButtons(usaFullData.m2,    'usa-years',           'setUsaYear');   redrawUsa();    renderPurchasingPowerCard('usa-pp',          cpiData.usa);         }
     updateHeroAmount();
   }
 
