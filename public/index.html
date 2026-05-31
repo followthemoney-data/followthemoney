@@ -55,13 +55,15 @@
     .pp-row .card { flex: 1; }
     .gdp-subtitle { margin-top: 1.5rem; margin-bottom: 0.5rem; }
     .year-select { padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 12px; color: #666; height: 28px; }
-    .brush-wrap { position: relative; height: 44px; margin-top: 10px; }
+    .brush-wrap { position: relative; height: 58px; margin-top: 14px; margin-bottom: 1.25rem; }
     .brush-track { position: absolute; top: 12px; left: 0; right: 0; height: 4px; background: #e8e8e8; border-radius: 2px; }
     .brush-fill { position: absolute; top: 12px; height: 4px; background: #378ADD33; pointer-events: none; }
     .brush-input { position: absolute; width: 100%; top: 6px; margin: 0; padding: 0; background: transparent; -webkit-appearance: none; appearance: none; pointer-events: none; height: 16px; }
     .brush-input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 24px; background: white; border: 2px solid #378ADD; border-radius: 3px; cursor: ew-resize; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
-    .brush-input::-moz-range-thumb { width: 12px; height: 24px; background: white; border: 2px solid #378ADD; border-radius: 3px; cursor: ew-resize; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,0.15); border: 2px solid #378ADD; }
-    .brush-tick-labels { position: absolute; bottom: 0; left: 0; right: 0; font-size: 10px; color: #ccc; pointer-events: none; }
+    .brush-input::-moz-range-thumb { width: 12px; height: 24px; background: white; border: 2px solid #378ADD; border-radius: 3px; cursor: ew-resize; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .brush-tick-wrap { position: absolute; bottom: 0; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+    .brush-tick-line { width: 1px; height: 10px; background: #bbb; margin-bottom: 3px; flex-shrink: 0; }
+    .brush-tick-label { font-size: 10px; color: #777; white-space: nowrap; line-height: 1; }
   </style>
 </head>
 <body>
@@ -371,17 +373,17 @@
     const step      = Math.max(1, Math.floor(allYears.length / 6));
     const picked    = allYears.filter((_, i) => i % step === 0);
     if (picked[picked.length - 1] !== allYears[allYears.length - 1]) picked.push(allYears[allYears.length - 1]);
-    const tickLabels = picked.map((y, i) => {
+    const tickHTML = picked.map((y, i) => {
       const pct = ((parseInt(y) - firstYear) / yearRange * 100).toFixed(1);
       const tf  = i === 0 ? 'translateX(0)' : i === picked.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)';
-      return `<span style="position:absolute;left:${pct}%;transform:${tf}">${y}</span>`;
+      return `<div class="brush-tick-wrap" style="left:${pct}%;transform:${tf}"><div class="brush-tick-line"></div><span class="brush-tick-label">${y}</span></div>`;
     }).join('');
     wrap.innerHTML = `
       <div class="brush-track"></div>
       <div class="brush-fill" id="${country}-bf"></div>
       <input type="range" class="brush-input" id="${country}-bmin" min="0" max="${n - 1}" value="0">
       <input type="range" class="brush-input" id="${country}-bmax" min="0" max="${n - 1}" value="${n - 1}">
-      <div class="brush-tick-labels">${tickLabels}</div>
+      ${tickHTML}
     `;
     const minEl = document.getElementById(country + '-bmin');
     const maxEl = document.getElementById(country + '-bmax');
