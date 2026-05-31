@@ -15,6 +15,7 @@
     .hero-sub { font-size: 0.75rem; color: #555; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 2.5rem; }
     .hero-amount { font-size: clamp(2rem, 7vw, 5rem); font-weight: 300; color: #fff; margin-top: 2.5rem; letter-spacing: -2px; font-variant-numeric: tabular-nums; line-height: 1.1; }
     .hero-meta { font-size: 0.75rem; color: #555; margin-top: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; }
+    .hero-explain { font-size: 0.8rem; color: #666; margin-top: 0.5rem; line-height: 1.5; }
     .container { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
     .tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .tab { padding: 8px 20px; border-radius: 8px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 16px; color: #666; line-height: 1; }
@@ -78,6 +79,7 @@
   <h1>The Fake Economy</h1>
   <div class="hero-amount" id="hero-amount">—</div>
   <div class="hero-meta" id="hero-meta"></div>
+  <p class="hero-explain" id="hero-explain"></p>
   <hr class="hero-divider">
   <p class="hero-debt-label">National Debt — Live</p>
   <div class="hero-debt" id="hero-debt">—</div>
@@ -309,11 +311,11 @@
   const BASE_PERIOD = '2000-01';
 
   const HERO_CONFIG = {
-    ecb:         { sym: '€',    mult: 1e6, series: () => ecbFullData?.m3,    label: 'Euro Area',   metric: 'M3' },
-    riksbank:    { sym: 'SEK ', mult: 1e6, series: () => riksFullData?.m3,   label: 'Sweden',      metric: 'M3' },
-    norway:      { sym: 'NOK ', mult: 1e6, series: () => norwayFullData?.m3, label: 'Norway',      metric: 'M3' },
-    switzerland: { sym: 'CHF ', mult: 1e6, series: () => swissFullData?.m3,  label: 'Switzerland', metric: 'M3' },
-    usa:         { sym: '$',    mult: 1e9, series: () => usaFullData?.m2,    label: 'USA',         metric: 'M2' },
+    ecb:         { sym: '€',    mult: 1e6, series: () => ecbFullData?.m3,    label: 'Euro Area',   metric: 'M3', explain: 'The total amount of money officially counted as existing in this economy — cash in wallets, money in bank accounts, savings, and large institutional funds combined.' },
+    riksbank:    { sym: 'SEK ', mult: 1e6, series: () => riksFullData?.m3,   label: 'Sweden',      metric: 'M3', explain: 'The total amount of money officially counted as existing in this economy — cash in wallets, money in bank accounts, savings, and large institutional funds combined.' },
+    norway:      { sym: 'NOK ', mult: 1e6, series: () => norwayFullData?.m3, label: 'Norway',      metric: 'M3', explain: 'The total amount of money officially counted as existing in this economy — cash in wallets, money in bank accounts, savings, and large institutional funds combined.' },
+    switzerland: { sym: 'CHF ', mult: 1e6, series: () => swissFullData?.m3,  label: 'Switzerland', metric: 'M3', explain: 'The total amount of money officially counted as existing in this economy — cash in wallets, money in bank accounts, savings, and large institutional funds combined.' },
+    usa:         { sym: '$',    mult: 1e9, series: () => usaFullData?.m2,    label: 'USA',         metric: 'M2', explain: 'The total amount of money officially counted as existing in this economy — cash in wallets, checking accounts, savings deposits, and money market accounts combined.' },
   };
 
   function updateHeroAmount() {
@@ -327,6 +329,8 @@
     const actual = Math.round(latest.value * cfg.mult);
     amountEl.textContent = cfg.sym + actual.toLocaleString('en-US');
     metaEl.textContent   = cfg.label + ' · ' + cfg.metric + ' · ' + latest.period;
+    const explainEl = document.getElementById('hero-explain');
+    if (explainEl) explainEl.textContent = cfg.explain || '';
   }
 
   // ── Tab switching ──────────────────────────────────────────────────────────
