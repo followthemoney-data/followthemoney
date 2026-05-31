@@ -54,6 +54,14 @@
     .pp-row { display: flex; gap: 12px; margin-bottom: 2rem; }
     .pp-row .card { flex: 1; }
     .gdp-subtitle { margin-top: 1.5rem; margin-bottom: 0.5rem; }
+    .year-select { padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 12px; color: #666; height: 28px; }
+    .brush-wrap { position: relative; height: 44px; margin-top: 10px; }
+    .brush-track { position: absolute; top: 12px; left: 0; right: 0; height: 4px; background: #e8e8e8; border-radius: 2px; }
+    .brush-fill { position: absolute; top: 12px; height: 4px; background: #378ADD33; pointer-events: none; }
+    .brush-input { position: absolute; width: 100%; top: 6px; margin: 0; padding: 0; background: transparent; -webkit-appearance: none; appearance: none; pointer-events: none; height: 16px; }
+    .brush-input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 24px; background: white; border: 2px solid #378ADD; border-radius: 3px; cursor: ew-resize; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+    .brush-input::-moz-range-thumb { width: 12px; height: 24px; background: white; border: 2px solid #378ADD; border-radius: 3px; cursor: ew-resize; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,0.15); border: 2px solid #378ADD; }
+    .brush-tick-labels { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-between; font-size: 10px; color: #ccc; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -88,10 +96,11 @@
           <button class="tf active" onclick="setEcbFilter('range', 12, this)">12M</button>
           <button class="tf" onclick="setEcbFilter('range', 60, this)">5Y</button>
           <button class="tf" onclick="setEcbFilter('all', null, this)">All</button>
+          <select class="year-select" id="ecb-year-select" onchange="if(this.value)setEcbYear(this.value)"><option value="">Year…</option></select>
         </div>
       </div>
-      <div class="year-filters" id="ecb-years"></div>
       <div class="chart-wrap"><canvas id="ecb-chart"></canvas></div>
+      <div class="brush-wrap" id="ecb-brush"></div>
       <div class="source">Money supply: ECB Data Portal — data-api.ecb.europa.eu · Purchasing power: Eurostat HICP via FRED (CP0000EZ19M086NEST)</div>
       <div class="chart-title gdp-subtitle" id="ecb-gdp-title">GDP Growth — Year on Year (%)</div>
       <div class="chart-wrap"><canvas id="ecb-gdp-chart"></canvas></div>
@@ -110,10 +119,11 @@
           <button class="tf active" onclick="setRiksFilter('range', 12, this)">12M</button>
           <button class="tf" onclick="setRiksFilter('range', 60, this)">5Y</button>
           <button class="tf" onclick="setRiksFilter('all', null, this)">All</button>
+          <select class="year-select" id="riksbank-year-select" onchange="if(this.value)setRiksYear(this.value)"><option value="">Year…</option></select>
         </div>
       </div>
-      <div class="year-filters" id="riksbank-years"></div>
       <div class="chart-wrap"><canvas id="riksbank-chart"></canvas></div>
+      <div class="brush-wrap" id="riksbank-brush"></div>
       <div class="source">Money supply: Sveriges Riksbank via Statistics Sweden (SCB) · Purchasing power: Eurostat HICP via FRED (CP0000SEM086NEST)</div>
       <div class="chart-title gdp-subtitle" id="riksbank-gdp-title">GDP Growth — Year on Year (%)</div>
       <div class="chart-wrap"><canvas id="riksbank-gdp-chart"></canvas></div>
@@ -132,10 +142,11 @@
           <button class="tf active" onclick="setNorwayFilter('range', 12, this)">12M</button>
           <button class="tf" onclick="setNorwayFilter('range', 60, this)">5Y</button>
           <button class="tf" onclick="setNorwayFilter('all', null, this)">All</button>
+          <select class="year-select" id="norway-year-select" onchange="if(this.value)setNorwayYear(this.value)"><option value="">Year…</option></select>
         </div>
       </div>
-      <div class="year-filters" id="norway-years"></div>
       <div class="chart-wrap"><canvas id="norway-chart"></canvas></div>
+      <div class="brush-wrap" id="norway-brush"></div>
       <div class="source">Money supply: Statistics Norway (SSB) — data.ssb.no · Purchasing power: OECD MEI via FRED (NORCPIALLMINMEI)</div>
       <div class="chart-title gdp-subtitle" id="norway-gdp-title">GDP Growth — Year on Year (%)</div>
       <div class="chart-wrap"><canvas id="norway-gdp-chart"></canvas></div>
@@ -153,10 +164,11 @@
           <button class="tf active" onclick="setUsaFilter('range', 12, this)">12M</button>
           <button class="tf" onclick="setUsaFilter('range', 60, this)">5Y</button>
           <button class="tf" onclick="setUsaFilter('all', null, this)">All</button>
+          <select class="year-select" id="usa-year-select" onchange="if(this.value)setUsaYear(this.value)"><option value="">Year…</option></select>
         </div>
       </div>
-      <div class="year-filters" id="usa-years"></div>
       <div class="chart-wrap"><canvas id="usa-chart"></canvas></div>
+      <div class="brush-wrap" id="usa-brush"></div>
       <div class="source">Money supply: Federal Reserve via FRED (M1SL, M2SL) · Purchasing power: BLS CPI-U via FRED (CPIAUCSL)</div>
       <div class="chart-title gdp-subtitle" id="usa-gdp-title">GDP Growth — Year on Year (%)</div>
       <div class="chart-wrap"><canvas id="usa-gdp-chart"></canvas></div>
@@ -175,10 +187,11 @@
           <button class="tf active" onclick="setSwissFilter('range', 12, this)">12M</button>
           <button class="tf" onclick="setSwissFilter('range', 60, this)">5Y</button>
           <button class="tf" onclick="setSwissFilter('all', null, this)">All</button>
+          <select class="year-select" id="switzerland-year-select" onchange="if(this.value)setSwissYear(this.value)"><option value="">Year…</option></select>
         </div>
       </div>
-      <div class="year-filters" id="switzerland-years"></div>
       <div class="chart-wrap"><canvas id="switzerland-chart"></canvas></div>
+      <div class="brush-wrap" id="switzerland-brush"></div>
       <div class="source">Money supply: Swiss National Bank (SNB) — data.snb.ch · Purchasing power: Eurostat HICP via FRED (CP0000CHM086NEST)</div>
       <div class="chart-title gdp-subtitle" id="switzerland-gdp-title">GDP Growth — Year on Year (%)</div>
       <div class="chart-wrap"><canvas id="switzerland-gdp-chart"></canvas></div>
@@ -243,81 +256,71 @@
   function setEcbFilter(mode, value, btn) {
     ecbFilter = { mode, value };
     document.querySelectorAll('#ecb-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#ecb-years .yf').forEach(t => t.classList.remove('active'));
+    const s = document.getElementById('ecb-year-select'); if (s) s.value = '';
     btn.classList.add('active');
-    if (ecbFullData) redrawEcb();
+    if (ecbFullData) { syncBrushToFilter('ecb', ecbFilter, ecbFullData.m2); redrawEcb(); }
   }
 
   function setRiksFilter(mode, value, btn) {
     riksFilter = { mode, value };
     document.querySelectorAll('#riksbank-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#riksbank-years .yf').forEach(t => t.classList.remove('active'));
+    const s = document.getElementById('riksbank-year-select'); if (s) s.value = '';
     btn.classList.add('active');
-    if (riksFullData) redrawRiks();
+    if (riksFullData) { syncBrushToFilter('riksbank', riksFilter, riksFullData.m2); redrawRiks(); }
   }
 
   function setNorwayFilter(mode, value, btn) {
     norwayFilter = { mode, value };
     document.querySelectorAll('#norway-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#norway-years .yf').forEach(t => t.classList.remove('active'));
+    const s = document.getElementById('norway-year-select'); if (s) s.value = '';
     btn.classList.add('active');
-    if (norwayFullData) redrawNorway();
+    if (norwayFullData) { syncBrushToFilter('norway', norwayFilter, norwayFullData.m2); redrawNorway(); }
   }
 
-  function setEcbYear(year, btn) {
+  function setEcbYear(year) {
     ecbFilter = { mode: 'year', value: year };
     document.querySelectorAll('#ecb-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#ecb-years .yf').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    if (ecbFullData) redrawEcb();
+    if (ecbFullData) { syncBrushToFilter('ecb', ecbFilter, ecbFullData.m2); redrawEcb(); }
   }
 
-  function setRiksYear(year, btn) {
+  function setRiksYear(year) {
     riksFilter = { mode: 'year', value: year };
     document.querySelectorAll('#riksbank-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#riksbank-years .yf').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    if (riksFullData) redrawRiks();
+    if (riksFullData) { syncBrushToFilter('riksbank', riksFilter, riksFullData.m2); redrawRiks(); }
   }
 
-  function setNorwayYear(year, btn) {
+  function setNorwayYear(year) {
     norwayFilter = { mode: 'year', value: year };
     document.querySelectorAll('#norway-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#norway-years .yf').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    if (norwayFullData) redrawNorway();
+    if (norwayFullData) { syncBrushToFilter('norway', norwayFilter, norwayFullData.m2); redrawNorway(); }
   }
 
   function setSwissFilter(mode, value, btn) {
     swissFilter = { mode, value };
     document.querySelectorAll('#switzerland-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#switzerland-years .yf').forEach(t => t.classList.remove('active'));
+    const s = document.getElementById('switzerland-year-select'); if (s) s.value = '';
     btn.classList.add('active');
-    if (swissFullData) redrawSwiss();
+    if (swissFullData) { syncBrushToFilter('switzerland', swissFilter, swissFullData.m2); redrawSwiss(); }
   }
 
-  function setSwissYear(year, btn) {
+  function setSwissYear(year) {
     swissFilter = { mode: 'year', value: year };
     document.querySelectorAll('#switzerland-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#switzerland-years .yf').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    if (swissFullData) redrawSwiss();
+    if (swissFullData) { syncBrushToFilter('switzerland', swissFilter, swissFullData.m2); redrawSwiss(); }
   }
 
   function setUsaFilter(mode, value, btn) {
     usaFilter = { mode, value };
     document.querySelectorAll('#usa-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#usa-years .yf').forEach(t => t.classList.remove('active'));
+    const s = document.getElementById('usa-year-select'); if (s) s.value = '';
     btn.classList.add('active');
-    if (usaFullData) redrawUsa();
+    if (usaFullData) { syncBrushToFilter('usa', usaFilter, usaFullData.m2); redrawUsa(); }
   }
 
-  function setUsaYear(year, btn) {
+  function setUsaYear(year) {
     usaFilter = { mode: 'year', value: year };
     document.querySelectorAll('#usa-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#usa-years .yf').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    if (usaFullData) redrawUsa();
+    if (usaFullData) { syncBrushToFilter('usa', usaFilter, usaFullData.m2); redrawUsa(); }
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────────
@@ -327,6 +330,7 @@
     if (filter.mode === 'all') return series;
     if (filter.mode === 'range') return series.slice(-filter.value);
     if (filter.mode === 'year') return series.filter(d => d.period.startsWith(filter.value));
+    if (filter.mode === 'brush') return series.filter(d => d.period >= filter.start && d.period <= filter.end);
     return series;
   }
 
@@ -335,6 +339,7 @@
     if (filter.mode === 'all') return series;
     if (filter.mode === 'year') return series.filter(d => d.period.startsWith(filter.value));
     if (filter.mode === 'range') return series.slice(-Math.round(filter.value / 3));
+    if (filter.mode === 'brush') return series.filter(d => d.period >= filter.start && d.period <= filter.end);
     return series;
   }
 
@@ -342,15 +347,90 @@
     if (filter.mode === 'all') return 'All time';
     if (filter.mode === 'range') return filter.value === 12 ? '12 months' : '5 years';
     if (filter.mode === 'year') return filter.value;
+    if (filter.mode === 'brush') return filter.start.slice(0, 7) + ' – ' + filter.end.slice(0, 7);
     return '';
   }
 
-  function buildYearButtons(series, containerId, clickFn) {
+  function buildYearDropdown(series, selectId) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
     const years = [...new Set(series.map(d => d.period.slice(0, 4)))].sort();
-    const container = document.getElementById(containerId);
-    container.innerHTML = years.map(y =>
-      `<button class="yf" onclick="${clickFn}('${y}', this)">${y}</button>`
-    ).join('');
+    sel.innerHTML = '<option value="">Year…</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+  }
+
+  // ── Brush (range selector below chart) ─────────────────────────────────────
+
+  function buildBrush(country, periods) {
+    const wrap = document.getElementById(country + '-brush');
+    if (!wrap || !periods.length) return;
+    const n = periods.length;
+    const years = [...new Set(periods.map(d => d.period.slice(0, 4)))];
+    const step = Math.max(1, Math.floor(years.length / 6));
+    const labelYears = years.filter((_, i) => i % step === 0);
+    wrap.innerHTML = `
+      <div class="brush-track"></div>
+      <div class="brush-fill" id="${country}-bf"></div>
+      <input type="range" class="brush-input" id="${country}-bmin" min="0" max="${n - 1}" value="0">
+      <input type="range" class="brush-input" id="${country}-bmax" min="0" max="${n - 1}" value="${n - 1}">
+      <div class="brush-tick-labels">${labelYears.map(y => `<span>${y}</span>`).join('')}</div>
+    `;
+    const minEl = document.getElementById(country + '-bmin');
+    const maxEl = document.getElementById(country + '-bmax');
+    const fillEl = document.getElementById(country + '-bf');
+    function updateFill(lo, hi) {
+      fillEl.style.left  = (lo / (n - 1) * 100) + '%';
+      fillEl.style.width = ((hi - lo) / (n - 1) * 100) + '%';
+    }
+    minEl.addEventListener('input', function () {
+      let lo = parseInt(minEl.value), hi = parseInt(maxEl.value);
+      if (lo >= hi) { minEl.value = lo = Math.max(0, hi - 1); }
+      updateFill(lo, hi);
+      onBrushInput(country, periods, lo, hi);
+    });
+    maxEl.addEventListener('input', function () {
+      let lo = parseInt(minEl.value), hi = parseInt(maxEl.value);
+      if (hi <= lo) { maxEl.value = hi = Math.min(n - 1, lo + 1); }
+      updateFill(lo, hi);
+      onBrushInput(country, periods, lo, hi);
+    });
+    updateFill(0, n - 1);
+  }
+
+  function onBrushInput(country, periods, minIdx, maxIdx) {
+    document.querySelectorAll('#' + country + '-view .tf').forEach(t => t.classList.remove('active'));
+    const sel = document.getElementById(country + '-year-select'); if (sel) sel.value = '';
+    const filter = { mode: 'brush', start: periods[minIdx].period, end: periods[maxIdx].period };
+    if (country === 'ecb')              { ecbFilter    = filter; redrawEcb();    }
+    else if (country === 'riksbank')    { riksFilter   = filter; redrawRiks();   }
+    else if (country === 'norway')      { norwayFilter  = filter; redrawNorway(); }
+    else if (country === 'switzerland') { swissFilter   = filter; redrawSwiss();  }
+    else if (country === 'usa')         { usaFilter     = filter; redrawUsa();    }
+  }
+
+  function syncBrushToFilter(country, filter, periods) {
+    const n = periods.length;
+    const minEl = document.getElementById(country + '-bmin');
+    const maxEl = document.getElementById(country + '-bmax');
+    const fillEl = document.getElementById(country + '-bf');
+    if (!minEl || !maxEl || !n) return;
+    let lo = 0, hi = n - 1;
+    if (filter.mode === 'range') {
+      lo = Math.max(0, n - filter.value);
+    } else if (filter.mode === 'year') {
+      const first = periods.findIndex(d => d.period.startsWith(filter.value));
+      let last = -1;
+      for (let i = n - 1; i >= 0; i--) { if (periods[i].period.startsWith(filter.value)) { last = i; break; } }
+      if (first !== -1) lo = first;
+      if (last  !== -1) hi = last;
+    } else if (filter.mode === 'brush') {
+      const first = periods.findIndex(d => d.period >= filter.start);
+      let last = -1;
+      for (let i = n - 1; i >= 0; i--) { if (periods[i].period <= filter.end) { last = i; break; } }
+      if (first !== -1) lo = first;
+      if (last  !== -1) hi = last;
+    }
+    minEl.value = lo; maxEl.value = hi;
+    if (fillEl) { fillEl.style.left = (lo / (n - 1) * 100) + '%'; fillEl.style.width = ((hi - lo) / (n - 1) * 100) + '%'; }
   }
 
   function growthHTML(series) {
@@ -528,11 +608,11 @@
 
   function tryRenderAll() {
     if (!cpiData) return;
-    if (ecbFullData)    { buildYearButtons(ecbFullData.m2,    'ecb-years',          'setEcbYear');   redrawEcb();    renderPurchasingPowerCard('ecb-pp',         cpiData.ecb);         }
-    if (riksFullData)   { buildYearButtons(riksFullData.m2,   'riksbank-years',      'setRiksYear');  redrawRiks();   renderPurchasingPowerCard('riksbank-pp',     cpiData.riksbank);    }
-    if (norwayFullData) { buildYearButtons(norwayFullData.m2, 'norway-years',        'setNorwayYear');redrawNorway(); renderPurchasingPowerCard('norway-pp',       cpiData.norway);      }
-    if (swissFullData)  { buildYearButtons(swissFullData.m2,  'switzerland-years',   'setSwissYear'); redrawSwiss();  renderPurchasingPowerCard('switzerland-pp',  cpiData.switzerland); }
-    if (usaFullData)    { buildYearButtons(usaFullData.m2,    'usa-years',           'setUsaYear');   redrawUsa();    renderPurchasingPowerCard('usa-pp',          cpiData.usa);         }
+    if (ecbFullData)    { buildYearDropdown(ecbFullData.m2,    'ecb-year-select');         buildBrush('ecb',         ecbFullData.m2);    redrawEcb();    renderPurchasingPowerCard('ecb-pp',         cpiData.ecb);         }
+    if (riksFullData)   { buildYearDropdown(riksFullData.m2,   'riksbank-year-select');    buildBrush('riksbank',    riksFullData.m2);   redrawRiks();   renderPurchasingPowerCard('riksbank-pp',     cpiData.riksbank);    }
+    if (norwayFullData) { buildYearDropdown(norwayFullData.m2, 'norway-year-select');      buildBrush('norway',      norwayFullData.m2); redrawNorway(); renderPurchasingPowerCard('norway-pp',       cpiData.norway);      }
+    if (swissFullData)  { buildYearDropdown(swissFullData.m2,  'switzerland-year-select'); buildBrush('switzerland', swissFullData.m2);  redrawSwiss();  renderPurchasingPowerCard('switzerland-pp',  cpiData.switzerland); }
+    if (usaFullData)    { buildYearDropdown(usaFullData.m2,    'usa-year-select');         buildBrush('usa',         usaFullData.m2);    redrawUsa();    renderPurchasingPowerCard('usa-pp',          cpiData.usa);         }
     updateHeroAmount();
   }
 
@@ -588,7 +668,6 @@
       if (!json.success) throw new Error(json.error);
       ecbFullData = json.data;
       renderCards('ecb-cards', ecbFullData, 'EUR', 1e6);
-      buildYearButtons(ecbFullData.m2, 'ecb-years', 'setEcbYear');
       document.getElementById('updated').textContent = 'Last updated: ' + new Date().toLocaleString();
       updateHeroAmount();
       tryRenderAll();
@@ -605,7 +684,6 @@
       if (!json.success) throw new Error(json.error);
       riksFullData = json.data;
       renderCards('riksbank-cards', riksFullData, 'SEK', 1e6);
-      buildYearButtons(riksFullData.m2, 'riksbank-years', 'setRiksYear');
       tryRenderAll();
     } catch(e) {
       document.getElementById('riksbank-cards').innerHTML = '<div class="loading">Could not load Riksbank data. Try refreshing.</div>';
@@ -620,7 +698,6 @@
       if (!json.success) throw new Error(json.error);
       norwayFullData = json.data;
       renderCards('norway-cards', norwayFullData, 'NOK', 1e6);
-      buildYearButtons(norwayFullData.m2, 'norway-years', 'setNorwayYear');
       tryRenderAll();
     } catch(e) {
       document.getElementById('norway-cards').innerHTML = '<div class="loading">Could not load Norway data. Try refreshing.</div>';
@@ -635,7 +712,6 @@
       if (!json.success) throw new Error(json.error);
       swissFullData = json.data;
       renderCards('switzerland-cards', swissFullData, 'CHF', 1e6);
-      buildYearButtons(swissFullData.m2, 'switzerland-years', 'setSwissYear');
       tryRenderAll();
     } catch(e) {
       document.getElementById('switzerland-cards').innerHTML = '<div class="loading">Could not load SNB data. Try refreshing.</div>';
@@ -650,7 +726,6 @@
       if (!json.success) throw new Error(json.error);
       usaFullData = json.data;
       renderCards('usa-cards', { m1: usaFullData.m1, m2: usaFullData.m2, m3: null }, 'USD', 1000);
-      buildYearButtons(usaFullData.m2, 'usa-years', 'setUsaYear');
       tryRenderAll();
     } catch(e) {
       document.getElementById('usa-cards').innerHTML = '<div class="loading">Could not load Fed data. Try refreshing.</div>';
