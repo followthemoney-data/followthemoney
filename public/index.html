@@ -19,7 +19,8 @@
     .tab.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
     .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 2rem; }
     .card { background: white; border-radius: 12px; padding: 1.25rem; border: 1px solid #eee; }
-    .card-label { font-size: 12px; color: #999; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .card-label { font-size: 12px; color: #999; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .card-desc { font-size: 12px; color: #bbb; margin-bottom: 10px; line-height: 1.5; }
     .card-value { font-size: 28px; font-weight: 600; color: #1a1a1a; }
     .card-unit { font-size: 13px; color: #999; margin-top: 4px; }
     .card-growth { font-size: 13px; margin-top: 6px; }
@@ -334,24 +335,31 @@
     return `<div class="card-growth ${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '▲' : '▼'} ${Math.abs(mom).toFixed(2)}% month on month</div>` + yoyHTML;
   }
 
+  const CARD_DESCS = {
+    m1: 'Physical cash and money in everyday bank accounts — what you can spend right now.',
+    m2: 'M1 plus savings accounts and short-term deposits — money you can access within a few days.',
+    m3: 'The broadest measure — M2 plus large institutional deposits and money market funds.',
+  };
+
   function renderCards(containerId, data, currency, divisor) {
     const container = document.getElementById(containerId);
     const { m1, m2, m3 } = data;
-    function cardHTML(label, series) {
-      if (!series || series.length === 0) return `<div class="card"><div class="card-label">${label}</div><div class="card-value">—</div></div>`;
+    function cardHTML(label, key, series) {
+      if (!series || series.length === 0) return `<div class="card"><div class="card-label">${label}</div><div class="card-desc">${CARD_DESCS[key]}</div><div class="card-value">—</div></div>`;
       const latest = series[series.length - 1];
       const val = (latest.value / divisor).toFixed(1);
       return `<div class="card">
         <div class="card-label">${label}</div>
+        <div class="card-desc">${CARD_DESCS[key]}</div>
         <div class="card-value">${val}T</div>
         <div class="card-unit">${currency} · ${latest.period}</div>
         ${growthHTML(series)}
       </div>`;
     }
     container.innerHTML =
-      cardHTML('M1 — Cash & overnight deposits', m1) +
-      cardHTML('M2 — M1 plus short-term savings', m2) +
-      cardHTML('M3 — Broad money supply', m3);
+      cardHTML('M1', 'm1', m1) +
+      cardHTML('M2', 'm2', m2) +
+      cardHTML('M3', 'm3', m3);
   }
 
   // ── Overlay chart ──────────────────────────────────────────────────────────
