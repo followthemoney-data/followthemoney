@@ -440,43 +440,60 @@ app.get('/api/switzerland', async (req, res) => {
 
 // ─── USA (FRED) endpoint ──────────────────────────────────────────────────────
 // Series: M1SL (M1) and M2SL (M2). USA has no official M3.
-// Units: billions of USD (not millions like other countries).
-// Data goes back to 1959. Requires FRED_API_KEY env var.
-// FRED returns monthly data with dates as YYYY-MM-DD (always the 1st of the month).
-// We normalise to YYYY-MM to match other endpoints.
+// Units: billions of USD (not millions like other countries). Data from 1959.
+// Uses FRED public CSV download — no API key needed (temporary until FRED API key obtained).
+// Same Redis caching pattern as Sweden: full snapshot stored once, refreshed once per day.
+// Redis keys: usa:snapshot (full M1+M2 arrays), usa:fred_checked (24h TTL refresh flag).
+// TODO: replace CSV fetch with official FRED API (api.stlouisfed.org) once FRED_API_KEY is set.
 
 app.get('/api/usa', async (req, res) => {
   try {
-    const apiKey = process.env.FRED_API_KEY;
-    if (!apiKey) throw new Error('FRED_API_KEY environment variable is not set');
+    const BASE = 'https://fred.stlouisfed.org/graph/fredgraph.csv';
 
-    const BASE = 'https://api.stlouisfed.org/fred/series/observations';
-
-    async function fetchSeries(seriesId) {
-      const url = `${BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=1959-01-01`;
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(`FRED HTTP ${r.status} for ${seriesId}`);
-      const data = await r.json();
-      if (data.error_code) throw new Error(`FRED error: ${data.error_message}`);
-      return data.observations
-        .filter(o => o.value !== '.')
-        .map(o => ({ period: o.date.slice(0, 7), value: parseFloat(o.value) }))
-        .sort((a, b) => a.period.localeCompare(b.period));
+    async function fetchFromFred() {
+      async function fetchSeries(seriesId) {
+        const url = `${BASE}?id=${seriesId}`;
+        const r = await fetch(url, {
+          headers: { 'User-Agent': 'followthemoney/1.0 (thefakeeconomy.com)' }
+        });
+        if (!r.ok) throw new Error(`FRED HTTP ${r.status} for ${seriesId}`);
+        const text = await r.text();
+        const lines = text.trim().split('\n');
+        return lines.slice(1)
+          .map(line => {
+            const [date, value] = line.split(',');
+            const v = parseFloat(value);
+            return date && !isNaN(v) ? { period: date.slice(0, 7), value: v } : null;
+          })
+          .filter(Boolean)
+          .sort((a, b) => a.period.localeCompare(b.period));
+      }
+      const [m1, m2] = await Promise.all([fetchSeries('M1SL'), fetchSeries('M2SL')]);
+      if (!m2.length) throw new Error('No data returned from FRED');
+      return { m1, m2 };
     }
 
-    const [m1, m2] = await Promise.all([
-      fetchSeries('M1SL'),
-      fetchSeries('M2SL'),
-    ]);
+    // 1. Load snapshot from Redis
+    const raw = await redis.get('usa:snapshot');
+    let snapshot = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
 
-    if (!m2.length) throw new Error('No data returned from FRED');
+    // 2. Only call FRED if cache has expired (once per day) or no snapshot exists yet
+    const fredCached = await redis.get('usa:fred_checked');
+    const source = fredCached && snapshot ? 'cache' : 'live';
+
+    if (!fredCached || !snapshot) {
+      snapshot = await fetchFromFred();
+      await redis.set('usa:snapshot', JSON.stringify(snapshot));
+      await redis.set('usa:fred_checked', '1', { ex: 86400 });
+    }
 
     res.json({
       success: true,
-      data: { m1, m2 },
-      periods: m2.length,
-      firstPeriod: m2[0]?.period,
-      lastPeriod: m2[m2.length - 1]?.period,
+      data: snapshot,
+      source,
+      periods: snapshot.m2.length,
+      firstPeriod: snapshot.m2[0]?.period,
+      lastPeriod: snapshot.m2[snapshot.m2.length - 1]?.period,
     });
   } catch (e) {
     console.error('USA error:', e);
