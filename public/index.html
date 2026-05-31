@@ -30,18 +30,18 @@
     .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px; }
     .chart-title { font-size: 14px; color: #999; }
     .time-filters { display: flex; gap: 6px; flex-wrap: wrap; }
-    .tf { padding: 4px 12px; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 12px; color: #666; white-space: nowrap; }
+    .tf { padding: 6px 14px; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 12px; color: #666; white-space: nowrap; min-height: 24px; }
     .tf.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
     .year-filters { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 1rem; }
-    .yf { padding: 3px 10px; border-radius: 6px; border: 1px solid #e0e0e0; background: white; cursor: pointer; font-size: 11px; color: #888; }
+    .yf { padding: 5px 10px; border-radius: 6px; border: 1px solid #e0e0e0; background: white; cursor: pointer; font-size: 11px; color: #888; min-height: 24px; }
     .yf.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
     .yf:hover { border-color: #aaa; color: #444; }
     .chart-wrap { position: relative; height: 250px; }
     .chart-legend { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
     .legend-item { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 500; color: #333; user-select: none; transition: opacity 0.15s; }
     .legend-item.disabled { opacity: 0.4; }
-    .legend-box { width: 18px; height: 18px; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .legend-box::after { content: '✓'; color: white; font-size: 11px; font-weight: 800; line-height: 1; }
+    .legend-box { width: 24px; height: 24px; border-radius: 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .legend-box::after { content: '✓'; color: white; font-size: 13px; font-weight: 800; line-height: 1; }
     .legend-item.disabled .legend-box::after { content: ''; }
     .source { font-size: 12px; color: #bbb; text-align: right; margin-top: 0.5rem; }
     .updated { font-size: 12px; color: #bbb; margin-bottom: 1.5rem; }
