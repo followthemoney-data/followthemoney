@@ -409,6 +409,44 @@
   const API_BASE = window.location.origin;
   const BASE_PERIOD = '2000-01';
 
+  const CHART_EVENTS = [
+    { year: '2008', label: '2008',  color: '#E8543A', yOff: 3  },
+    { year: '2020', label: 'COVID', color: '#888888', yOff: 3  },
+    { year: '2022', label: '2022',  color: '#E78A28', yOff: 16 },
+  ];
+
+  function makeAnnotationPlugin() {
+    return {
+      id: 'eventAnnotations',
+      afterDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        if (!scales.x || !chartArea) return;
+        const labels = chart.data.labels;
+        ctx.save();
+        CHART_EVENTS.forEach(({ year, label, color, yOff }) => {
+          const idx = labels.findIndex(l => String(l).startsWith(year));
+          if (idx < 0) return;
+          const x = scales.x.getPixelForValue(idx);
+          if (x < chartArea.left || x > chartArea.right) return;
+          ctx.strokeStyle = color + 'aa';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(x, chartArea.top);
+          ctx.lineTo(x, chartArea.bottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = color;
+          ctx.font = 'bold 9px -apple-system, BlinkMacSystemFont, sans-serif';
+          ctx.textBaseline = 'top';
+          ctx.textAlign = 'left';
+          ctx.fillText(label, x + 3, chartArea.top + yOff);
+        });
+        ctx.restore();
+      }
+    };
+  }
+
   const HERO_CONFIG = {
     ecb:         { sym: '€',    mult: 1e6, series: () => ecbFullData?.m3,    label: 'Euro Area',   metric: 'M3' },
     riksbank:    { sym: 'SEK ', mult: 1e6, series: () => riksFullData?.m3,   label: 'Sweden',      metric: 'M3' },
@@ -743,12 +781,13 @@
 
     const inst = new Chart(canvas.getContext('2d'), {
       type: 'line',
+      plugins: [makeAnnotationPlugin()],
       data: {
         labels: overlayData.periods,
         datasets: [
-          { label: moneyLabel,           data: overlayData.moneyIndexed,    borderColor: '#357AC6', backgroundColor: '#357AC610', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yMoney' },
-          { label: 'Purchasing Power',   data: overlayData.purchasingPower, borderColor: '#E8543A', backgroundColor: '#E8543A10', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yPower' },
-          { label: 'Inflation (YoY %)',  data: overlayData.inflation,       borderColor: '#E78A28', backgroundColor: '#E78A2810', borderWidth: 2, pointRadius: showDots ? 3 : 0, pointHoverRadius: 5, fill: false, tension: 0.3, yAxisID: 'yInflation', borderDash: [4, 3] }
+          { label: moneyLabel,           data: overlayData.moneyIndexed,    borderColor: '#357AC6', backgroundColor: '#357AC610', borderWidth: 2, pointRadius: showDots ? 2 : 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#357AC6', pointHoverBorderWidth: 0, fill: false, tension: 0.3, yAxisID: 'yMoney' },
+          { label: 'Purchasing Power',   data: overlayData.purchasingPower, borderColor: '#E8543A', backgroundColor: '#E8543A10', borderWidth: 2, pointRadius: showDots ? 2 : 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#E8543A', pointHoverBorderWidth: 0, fill: false, tension: 0.3, yAxisID: 'yPower' },
+          { label: 'Inflation (YoY %)',  data: overlayData.inflation,       borderColor: '#E78A28', backgroundColor: '#E78A2810', borderWidth: 2, pointRadius: showDots ? 2 : 0, pointHoverRadius: 4, pointHoverBackgroundColor: '#E78A28', pointHoverBorderWidth: 0, fill: false, tension: 0.3, yAxisID: 'yInflation', borderDash: [4, 3] }
         ]
       },
       options: {
@@ -1064,6 +1103,7 @@
     const ctx = document.getElementById(canvasId).getContext('2d');
     const inst = new Chart(ctx, {
       type: 'bar',
+      plugins: [makeAnnotationPlugin()],
       data: {
         labels: display.map(d => d.period),
         datasets: [{
