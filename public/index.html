@@ -791,6 +791,9 @@
 
   function renderOverlayChart(canvasId, overlayData, moneyLabel, existing, setter) {
     if (!overlayData) return;
+    const hiddenSets = existing
+      ? existing.data.datasets.map((_, i) => !!existing.getDatasetMeta(i).hidden)
+      : [];
     if (existing) existing.destroy();
 
     const canvas = document.getElementById(canvasId);
@@ -848,6 +851,12 @@
       descEl.textContent = `The blue line is money supply (index, ${base} = 100). The red line is purchasing power — how far your money goes. The amber dashed line is annual inflation rate (right axis, %).`;
     }
 
+    // Restore hidden dataset state from before redraw
+    hiddenSets.forEach((hidden, i) => {
+      if (hidden && i < inst.data.datasets.length) inst.getDatasetMeta(i).hidden = true;
+    });
+    if (hiddenSets.some(Boolean)) inst.update();
+
     // Custom HTML legend
     let legendEl = document.getElementById(canvasId + '-legend');
     if (!legendEl) {
@@ -860,6 +869,7 @@
     [{ label: moneyLabel, color: '#357AC6', i: 0 }, { label: 'Purchasing Power', color: '#E8543A', i: 1 }, { label: 'Inflation (YoY %)', color: '#E78A28', i: 2 }, { label: 'Policy Rate', color: '#059669', i: 3 }].forEach(({ label, color, i }) => {
       const item = document.createElement('div');
       item.className = 'legend-item';
+      if (inst.getDatasetMeta(i).hidden) item.classList.add('disabled');
       item.innerHTML = `<div class="legend-box" style="background:${color}"></div><span>${label}</span>`;
       item.addEventListener('click', () => {
         const meta = inst.getDatasetMeta(i);
