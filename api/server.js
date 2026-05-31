@@ -518,12 +518,12 @@ app.get('/api/usa-seed', async (req, res) => {
 // Fetches monthly CPI index for all 5 countries from FRED (same API key as USA).
 // Used by the frontend to calculate purchasing power over time.
 // Redis keys: cpi:snapshot, cpi:checked (24h TTL)
-// Series IDs (OECD Main Economic Indicators via FRED):
-//   USA:         CPIAUCSL         (CPI-U All Items, 1947-)
-//   Euro Area:   CP0000EZ19M086NEST (HICP All Items EA19, 1996-)
-//   Sweden:      SWECPIALLMINMEI  (CPI All Items, 1960-)
-//   Norway:      NORCPIALLMINMEI  (CPI All Items, 1960-)
-//   Switzerland: CHECPIALLMINMEI  (CPI All Items, 1960-)
+// Series IDs — ECB and Norway confirmed working. Others updated after debugging.
+//   USA:         CPIAUCSL           (BLS CPI-U All Items, 1947-)
+//   Euro Area:   CP0000EZ19M086NEST (Eurostat HICP EA19, confirmed 1996-)
+//   Sweden:      CP0000SEM086NEST   (Eurostat HICP Sweden)
+//   Norway:      NORCPIALLMINMEI    (OECD MEI, confirmed 1960-)
+//   Switzerland: CP0000CHM086NEST   (Eurostat HICP Switzerland)
 
 async function fetchCpiFromFred() {
   const apiKey = process.env.FRED_API_KEY;
@@ -545,11 +545,12 @@ async function fetchCpiFromFred() {
   const seriesMap = {
     usa:         'CPIAUCSL',
     ecb:         'CP0000EZ19M086NEST',
-    riksbank:    'SWECPIALLMINMEI',
+    riksbank:    'CP0000SEM086NEST',
     norway:      'NORCPIALLMINMEI',
-    switzerland: 'CHECPIALLMINMEI',
+    switzerland: 'CP0000CHM086NEST',
   };
 
+  const errors = {};
   const results = {};
   await Promise.all(
     Object.entries(seriesMap).map(async ([key, id]) => {
@@ -558,9 +559,11 @@ async function fetchCpiFromFred() {
       } catch (e) {
         console.error(`CPI fetch failed for ${key} (${id}):`, e.message);
         results[key] = null;
+        errors[key] = e.message;
       }
     })
   );
+  results._errors = errors;
   return results;
 }
 
@@ -590,10 +593,11 @@ app.get('/api/cpi-seed', async (req, res) => {
     const snapshot = await fetchCpiFromFred();
     await redis.set('cpi:snapshot', JSON.stringify(snapshot));
     await redis.set('cpi:checked', '1', { ex: 86400 });
+    const { _errors, ...data } = snapshot;
     const summary = Object.fromEntries(
-      Object.entries(snapshot).map(([k, v]) => [k, v
+      Object.entries(data).map(([k, v]) => [k, v
         ? { periods: v.length, first: v[0]?.period, last: v[v.length-1]?.period }
-        : 'failed'
+        : { failed: true, error: _errors?.[k] || 'unknown' }
       ])
     );
     res.json({ success: true, message: 'CPI seed complete.', summary });
