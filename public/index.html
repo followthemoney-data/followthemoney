@@ -1238,11 +1238,11 @@
 
   function tryRenderRates() {
     if (!ratesData) return;
-    if (ratesData.ecb)         renderRateCard('ecb-pp2',         ratesData.ecb);
-    if (ratesData.riksbank)    renderRateCard('riksbank-pp2',    ratesData.riksbank);
-    if (ratesData.norway)      renderRateCard('norway-pp2',      ratesData.norway);
-    if (ratesData.switzerland) renderRateCard('switzerland-pp2', ratesData.switzerland);
-    if (ratesData.usa)         renderRateCard('usa-pp2',         ratesData.usa);
+    if (ratesData.ecb)         renderRateCard('ecb-pp',         ratesData.ecb);
+    if (ratesData.riksbank)    renderRateCard('riksbank-pp',    ratesData.riksbank);
+    if (ratesData.norway)      renderRateCard('norway-pp',      ratesData.norway);
+    if (ratesData.switzerland) renderRateCard('switzerland-pp', ratesData.switzerland);
+    if (ratesData.usa)         renderRateCard('usa-pp',         ratesData.usa);
     // Re-render overlay charts to add rate line
     redrawEcb(); redrawRiks(); redrawNorway(); redrawSwiss(); redrawUsa();
   }
