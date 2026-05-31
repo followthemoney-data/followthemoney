@@ -61,7 +61,7 @@
     .brush-input { position: absolute; width: 100%; top: 6px; margin: 0; padding: 0; background: transparent; -webkit-appearance: none; appearance: none; pointer-events: none; height: 16px; }
     .brush-input::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 24px; background: white; border: 2px solid #378ADD; border-radius: 3px; cursor: ew-resize; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
     .brush-input::-moz-range-thumb { width: 12px; height: 24px; background: white; border: 2px solid #378ADD; border-radius: 3px; cursor: ew-resize; pointer-events: all; box-shadow: 0 1px 3px rgba(0,0,0,0.15); border: 2px solid #378ADD; }
-    .brush-tick-labels { position: absolute; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-between; font-size: 10px; color: #ccc; pointer-events: none; }
+    .brush-tick-labels { position: absolute; bottom: 0; left: 0; right: 0; font-size: 10px; color: #ccc; pointer-events: none; }
   </style>
 </head>
 <body>
@@ -364,15 +364,24 @@
     const wrap = document.getElementById(country + '-brush');
     if (!wrap || !periods.length) return;
     const n = periods.length;
-    const years = [...new Set(periods.map(d => d.period.slice(0, 4)))];
-    const step = Math.max(1, Math.floor(years.length / 6));
-    const labelYears = years.filter((_, i) => i % step === 0);
+    const firstYear = parseInt(periods[0].period.slice(0, 4));
+    const lastYear  = parseInt(periods[n - 1].period.slice(0, 4));
+    const yearRange = lastYear - firstYear || 1;
+    const allYears  = [...new Set(periods.map(d => d.period.slice(0, 4)))].sort();
+    const step      = Math.max(1, Math.floor(allYears.length / 6));
+    const picked    = allYears.filter((_, i) => i % step === 0);
+    if (picked[picked.length - 1] !== allYears[allYears.length - 1]) picked.push(allYears[allYears.length - 1]);
+    const tickLabels = picked.map((y, i) => {
+      const pct = ((parseInt(y) - firstYear) / yearRange * 100).toFixed(1);
+      const tf  = i === 0 ? 'translateX(0)' : i === picked.length - 1 ? 'translateX(-100%)' : 'translateX(-50%)';
+      return `<span style="position:absolute;left:${pct}%;transform:${tf}">${y}</span>`;
+    }).join('');
     wrap.innerHTML = `
       <div class="brush-track"></div>
       <div class="brush-fill" id="${country}-bf"></div>
       <input type="range" class="brush-input" id="${country}-bmin" min="0" max="${n - 1}" value="0">
       <input type="range" class="brush-input" id="${country}-bmax" min="0" max="${n - 1}" value="${n - 1}">
-      <div class="brush-tick-labels">${labelYears.map(y => `<span>${y}</span>`).join('')}</div>
+      <div class="brush-tick-labels">${tickLabels}</div>
     `;
     const minEl = document.getElementById(country + '-bmin');
     const maxEl = document.getElementById(country + '-bmax');
