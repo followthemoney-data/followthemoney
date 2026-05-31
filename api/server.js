@@ -378,88 +378,6 @@ app.get('/api/norway', async (req, res) => {
   }
 });
 
-// ─── Germany (Bundesbank) endpoint ───────────────────────────────────────────
-// Uses Bundesbank SDMX API (BBSIS flow) — same BSI key structure as ECB.
-// Germany joined the eurozone in 1999. Post-1999 data = German contribution
-// to euro area aggregates (EUR). Pre-1999 not available in BBSIS.
-// Units: EUR millions. No auth needed.
-
-app.get('/api/germany-debug', async (req, res) => {
-  // Use ECB API with DE country code - same API as our working ECB endpoint
-  // Germany's contribution to euro area aggregates, from 1999-01 (euro changeover)
-  const attempts = [
-    'https://data-api.ecb.europa.eu/service/data/BSI/M.DE.Y.V.M10.X.1.U2.2300.Z01.E?format=csvdata&startPeriod=2025-01',
-    'https://data-api.ecb.europa.eu/service/data/BSI/M.DE.Y.V.M20.X.1.U2.2300.Z01.E?format=csvdata&startPeriod=2025-01',
-    'https://data-api.ecb.europa.eu/service/data/BSI/M.DE.Y.V.M30.X.1.U2.2300.Z01.E?format=csvdata&startPeriod=2025-01',
-  ];
-  const results = [];
-  for (const url of attempts) {
-    try {
-      const r = await fetch(url);
-      const text = await r.text();
-      results.push({ status: r.status, url: url.split('?')[0], preview: text.slice(0, 300) });
-    } catch (e) {
-      results.push({ error: e.message, url });
-    }
-  }
-  res.json(results);
-});
-
-app.get('/api/germany', async (req, res) => {
-  try {
-    // ECB BSI API with DE country code — same as our working ECB endpoint
-    // but filtered to Germany's contribution to euro area aggregates
-    const BASE = 'https://data-api.ecb.europa.eu/service/data/BSI';
-    const seriesMap = {
-      m1: 'M.DE.Y.V.M10.X.1.U2.2300.Z01.E',
-      m2: 'M.DE.Y.V.M20.X.1.U2.2300.Z01.E',
-      m3: 'M.DE.Y.V.M30.X.1.U2.2300.Z01.E',
-    };
-
-    async function fetchSeries(key) {
-      const url = `${BASE}/${key}?format=csvdata`;
-      const r = await fetch(url);
-      if (!r.ok) throw new Error(`ECB/DE HTTP ${r.status} for ${key}`);
-      const text = await r.text();
-      const lines = text.trim().split('\n');
-      const header = lines[0].split(',');
-      const timePeriodIdx = header.findIndex(h => h.trim().replace(/"/g, '') === 'TIME_PERIOD');
-      const obsValueIdx = header.findIndex(h => h.trim().replace(/"/g, '') === 'OBS_VALUE');
-      if (timePeriodIdx === -1 || obsValueIdx === -1) {
-        throw new Error(`Unexpected CSV headers: ${lines[0].slice(0, 200)}`);
-      }
-      const series = [];
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',').map(c => c.replace(/"/g, '').trim());
-        const period = cols[timePeriodIdx];
-        const value = parseFloat(cols[obsValueIdx]);
-        if (period && !isNaN(value)) series.push({ period, value });
-      }
-      return series.sort((a, b) => a.period.localeCompare(b.period));
-    }
-
-    const [m1, m2, m3] = await Promise.all([
-      fetchSeries(seriesMap.m1),
-      fetchSeries(seriesMap.m2),
-      fetchSeries(seriesMap.m3),
-    ]);
-
-    if (!m3.length) throw new Error('No data returned from ECB for Germany');
-
-    res.json({
-      success: true,
-      data: { m1, m2, m3 },
-      periods: m3.length,
-      firstPeriod: m3[0]?.period,
-      lastPeriod: m3[m3.length - 1]?.period,
-    });
-  } catch (e) {
-    console.error('Germany error:', e);
-    res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-
 // SNB data portal: data.snb.ch/api/cube/snbmonagg
 // Dimensions confirmed: D0(B)=Level, D1(GM1/GM2/GM3)=M1/M2/M3
 // CSV format, semicolon-separated, data starts at row 4 (0-indexed)
@@ -516,6 +434,52 @@ app.get('/api/switzerland', async (req, res) => {
     });
   } catch (e) {
     console.error('Switzerland error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ─── USA (FRED) endpoint ──────────────────────────────────────────────────────
+// Series: M1SL (M1) and M2SL (M2). USA has no official M3.
+// Units: billions of USD (not millions like other countries).
+// Data goes back to 1959. Requires FRED_API_KEY env var.
+// FRED returns monthly data with dates as YYYY-MM-DD (always the 1st of the month).
+// We normalise to YYYY-MM to match other endpoints.
+
+app.get('/api/usa', async (req, res) => {
+  try {
+    const apiKey = process.env.FRED_API_KEY;
+    if (!apiKey) throw new Error('FRED_API_KEY environment variable is not set');
+
+    const BASE = 'https://api.stlouisfed.org/fred/series/observations';
+
+    async function fetchSeries(seriesId) {
+      const url = `${BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=1959-01-01`;
+      const r = await fetch(url);
+      if (!r.ok) throw new Error(`FRED HTTP ${r.status} for ${seriesId}`);
+      const data = await r.json();
+      if (data.error_code) throw new Error(`FRED error: ${data.error_message}`);
+      return data.observations
+        .filter(o => o.value !== '.')
+        .map(o => ({ period: o.date.slice(0, 7), value: parseFloat(o.value) }))
+        .sort((a, b) => a.period.localeCompare(b.period));
+    }
+
+    const [m1, m2] = await Promise.all([
+      fetchSeries('M1SL'),
+      fetchSeries('M2SL'),
+    ]);
+
+    if (!m2.length) throw new Error('No data returned from FRED');
+
+    res.json({
+      success: true,
+      data: { m1, m2 },
+      periods: m2.length,
+      firstPeriod: m2[0]?.period,
+      lastPeriod: m2[m2.length - 1]?.period,
+    });
+  } catch (e) {
+    console.error('USA error:', e);
     res.status(500).json({ success: false, error: e.message });
   }
 });
