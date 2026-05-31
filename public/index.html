@@ -97,11 +97,6 @@
     .annotation-tooltip { position: fixed; display: none; background: #1a1a1a; color: white; padding: 10px 14px; border-radius: 8px; font-size: 13px; max-width: 260px; line-height: 1.5; z-index: 1000; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
     .annotation-tooltip strong { display: block; margin-bottom: 4px; }
     .annotation-tooltip p { margin: 0; color: #bbb; font-size: 12px; }
-    .money-cols { display: flex; gap: 8px; margin: 10px 0 4px; }
-    .money-col { flex: 1; min-width: 0; }
-    .money-col-label { font-size: 14px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
-    .money-col-desc { font-size: 12px; color: #888; line-height: 1.5; margin-bottom: 8px; }
-    .money-col-growth { font-size: 12px; margin-top: 4px; }
   @media (max-width: 640px) {
     header { padding: 3rem 1.25rem 2.5rem; }
     header h1 { letter-spacing: -1px; }
@@ -801,34 +796,32 @@
     const container = document.getElementById(containerId);
     const { m1, m2, m3 } = data;
 
-    function colHTML(label, key, series) {
+    function moneyCardHTML(label, key, series) {
       const desc = CARD_DESCS[key] || '';
-      if (!series || !series.length) return `<div class="money-col"><div class="money-col-label">${label}</div><div class="money-col-desc">${desc}</div><div class="card-value">—</div></div>`;
+      if (!series || !series.length) return `<div class="card" style="flex:1">
+        <div class="card-label">${label}</div>
+        <div class="card-desc">${desc}</div>
+        <div class="card-value">—</div>
+      </div>`;
       const latest = series[series.length - 1];
       const val = (latest.value / divisor).toFixed(1);
-      let growth = '';
-      if (series.length >= 2) {
-        const prev = series[series.length - 2];
-        const mom = (latest.value - prev.value) / prev.value * 100;
-        growth = `<div class="money-col-growth ${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '▲' : '▼'} ${Math.abs(mom).toFixed(2)}%</div>`;
-      }
-      return `<div class="money-col">
-        <div class="money-col-label">${label}</div>
-        <div class="money-col-desc">${desc}</div>
+      return `<div class="card" style="flex:1">
+        <div class="card-label">${label}</div>
+        <div class="card-desc">${desc}</div>
+        <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
         <div class="card-value">${val}T</div>
-        ${growth}
+        <div class="card-unit">${currency} · ${latest.period}</div>
+        ${growthHTML(series)}
       </div>`;
     }
 
-    const latestPeriod = (m2 || m1 || [])[((m2 || m1 || []).length || 1) - 1]?.period || '';
-    container.innerHTML = `<div class="card">
-      <div class="card-label">Money Supply</div>
-      <div class="money-cols">
-        ${colHTML('M1', 'm1', m1)}
-        ${colHTML('M2', 'm2', m2)}
-        ${colHTML('M3', 'm3', m3)}
+    container.innerHTML = `<div style="width:100%">
+      <div style="font-size:16px;font-weight:700;color:#1a1a1a;margin-bottom:0.75rem;">Money Supply</div>
+      <div style="display:flex;gap:12px;">
+        ${moneyCardHTML('M1', 'm1', m1)}
+        ${moneyCardHTML('M2', 'm2', m2)}
+        ${moneyCardHTML('M3', 'm3', m3)}
       </div>
-      <div class="card-unit">${currency} · ${latestPeriod}</div>
     </div>`;
   }
 
