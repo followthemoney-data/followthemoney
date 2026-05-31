@@ -169,18 +169,20 @@
   let ecbFilter = { mode: 'range', value: 12 };
   let riksFilter = { mode: 'range', value: 12 };
   let norwayFilter = { mode: 'range', value: 12 };
+  let swissChart = null, swissFullData = null, swissFilter = { mode: 'range', value: 12 };
+  let usaChart = null, usaFullData = null, usaFilter = { mode: 'range', value: 12 };
+  let cpiData = null;
   const API_BASE = window.location.origin;
+  const BASE_PERIOD = '2000-01';
 
   // ── Tab switching ──────────────────────────────────────────────────────────
 
   function switchBank(bank, btn) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('ecb-view').style.display = bank === 'ecb' ? '' : 'none';
-    document.getElementById('riksbank-view').style.display = bank === 'riksbank' ? '' : 'none';
-    document.getElementById('norway-view').style.display = bank === 'norway' ? '' : 'none';
-    document.getElementById('switzerland-view').style.display = bank === 'switzerland' ? '' : 'none';
-    document.getElementById('usa-view').style.display = bank === 'usa' ? '' : 'none';
+    ['ecb', 'riksbank', 'norway', 'switzerland', 'usa'].forEach(b =>
+      document.getElementById(b + '-view').style.display = bank === b ? '' : 'none'
+    );
   }
 
   // ── Filter setters ─────────────────────────────────────────────────────────
@@ -292,37 +294,86 @@
       cardHTML('M3 — Broad money supply', m3);
   }
 
-  function renderChart(canvasId, series, label, color, existing, setter) {
-    if (!series || series.length === 0) return;
+  // ── Overlay chart ──────────────────────────────────────────────────────────
+  // Both series are indexed to BASE_PERIOD = 100 so they share the same scale origin.
+  // Money supply rises from 100. Purchasing power = (baseCPI / currentCPI) * 100, falls from 100.
+
+  function buildOverlayData(moneySeries, cpiSeries, filter) {
+    if (!moneySeries || !cpiSeries) return null;
+    const cpiMap = {};
+    cpiSeries.forEach(d => cpiMap[d.period] = d.value);
+    const aligned = moneySeries.filter(d => cpiMap[d.period] !== undefined);
+    const filtered = applyFilter(aligned, filter);
+    if (!filtered.length) return null;
+    const moneyBase = moneySeries.find(d => d.period === BASE_PERIOD);
+    const cpiBase = cpiSeries.find(d => d.period === BASE_PERIOD);
+    if (!moneyBase || !cpiBase) return null;
+    return {
+      periods: filtered.map(d => d.period),
+      moneyIndexed: filtered.map(d => +((d.value / moneyBase.value) * 100).toFixed(1)),
+      purchasingPower: filtered.map(d => +((cpiBase.value / cpiMap[d.period]) * 100).toFixed(1)),
+    };
+  }
+
+  function renderOverlayChart(canvasId, overlayData, moneyLabel, existing, setter) {
+    if (!overlayData) return;
     if (existing) existing.destroy();
     const ctx = document.getElementById(canvasId).getContext('2d');
-    const showDots = series.length <= 36;
+    const showDots = overlayData.periods.length <= 36;
     const inst = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: series.map(d => d.period),
-        datasets: [{
-          label,
-          data: series.map(d => +(d.value / 1e6).toFixed(2)),
-          borderColor: color,
-          backgroundColor: color + '18',
-          borderWidth: 2,
-          pointRadius: showDots ? 3 : 0,
-          pointHoverRadius: 5,
-          fill: true,
-          tension: 0.3
-        }]
+        labels: overlayData.periods,
+        datasets: [
+          {
+            label: moneyLabel,
+            data: overlayData.moneyIndexed,
+            borderColor: '#378ADD',
+            backgroundColor: '#378ADD10',
+            borderWidth: 2,
+            pointRadius: showDots ? 3 : 0,
+            pointHoverRadius: 5,
+            fill: false,
+            tension: 0.3,
+            yAxisID: 'yMoney',
+          },
+          {
+            label: 'Purchasing Power',
+            data: overlayData.purchasingPower,
+            borderColor: '#E8543A',
+            backgroundColor: '#E8543A10',
+            borderWidth: 2,
+            pointRadius: showDots ? 3 : 0,
+            pointHoverRadius: 5,
+            fill: false,
+            tension: 0.3,
+            yAxisID: 'yPower',
+          }
+        ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { display: false },
-          tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(2) + 'T' } }
+          legend: { display: true, position: 'top', labels: { font: { size: 11 }, boxWidth: 12 } },
+          tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(1) } }
         },
         scales: {
-          x: { ticks: { font: { size: 11 }, maxRotation: 45, maxTicksLimit: series.length > 60 ? 12 : series.length > 24 ? 18 : 13 } },
-          y: { ticks: { font: { size: 11 }, callback: v => v.toFixed(1) + 'T' } }
+          x: { ticks: { font: { size: 11 }, maxRotation: 45, maxTicksLimit: 12 } },
+          yMoney: {
+            type: 'linear',
+            position: 'left',
+            ticks: { font: { size: 11 }, callback: v => v.toFixed(0) },
+            title: { display: true, text: 'Money Supply (2000 = 100)', font: { size: 10 }, color: '#378ADD' }
+          },
+          yPower: {
+            type: 'linear',
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: { font: { size: 11 }, callback: v => v.toFixed(0) },
+            title: { display: true, text: 'Purchasing Power (2000 = 100)', font: { size: 10 }, color: '#E8543A' }
+          }
         }
       }
     });
@@ -331,25 +382,54 @@
 
   // ── Redraw helpers ─────────────────────────────────────────────────────────
 
+  function tryRenderAll() {
+    if (!cpiData) return;
+    if (ecbFullData)    redrawEcb();
+    if (riksFullData)   redrawRiks();
+    if (norwayFullData) redrawNorway();
+    if (swissFullData)  redrawSwiss();
+    if (usaFullData)    redrawUsa();
+  }
+
   function redrawEcb() {
-    const sliced = applyFilter(ecbFullData.m3, ecbFilter);
-    document.getElementById('ecb-chart-title').textContent = 'M3 — Money supply trend (EUR) — ' + filterLabel(ecbFilter);
-    renderChart('ecb-chart', sliced, 'M3 (EUR)', '#378ADD', ecbChart, v => ecbChart = v);
+    if (!ecbFullData || !cpiData) return;
+    document.getElementById('ecb-chart-title').textContent = 'M2 vs Purchasing Power (EUR) — ' + filterLabel(ecbFilter);
+    renderOverlayChart('ecb-chart', buildOverlayData(ecbFullData.m2, cpiData.ecb, ecbFilter), 'M2 (EUR)', ecbChart, v => ecbChart = v);
   }
-
   function redrawRiks() {
-    const sliced = applyFilter(riksFullData.m3, riksFilter);
-    document.getElementById('riksbank-chart-title').textContent = 'M3 — Money supply trend (SEK) — ' + filterLabel(riksFilter);
-    renderChart('riksbank-chart', sliced, 'M3 (SEK)', '#1D9E75', riksChart, v => riksChart = v);
+    if (!riksFullData || !cpiData) return;
+    document.getElementById('riksbank-chart-title').textContent = 'M2 vs Purchasing Power (SEK) — ' + filterLabel(riksFilter);
+    renderOverlayChart('riksbank-chart', buildOverlayData(riksFullData.m2, cpiData.riksbank, riksFilter), 'M2 (SEK)', riksChart, v => riksChart = v);
   }
-
   function redrawNorway() {
-    const sliced = applyFilter(norwayFullData.m3, norwayFilter);
-    document.getElementById('norway-chart-title').textContent = 'M3 — Money supply trend (NOK) — ' + filterLabel(norwayFilter);
-    renderChart('norway-chart', sliced, 'M3 (NOK)', '#E8543A', norwayChart, v => norwayChart = v);
+    if (!norwayFullData || !cpiData) return;
+    document.getElementById('norway-chart-title').textContent = 'M2 vs Purchasing Power (NOK) — ' + filterLabel(norwayFilter);
+    renderOverlayChart('norway-chart', buildOverlayData(norwayFullData.m2, cpiData.norway, norwayFilter), 'M2 (NOK)', norwayChart, v => norwayChart = v);
+  }
+  function redrawSwiss() {
+    if (!swissFullData || !cpiData) return;
+    document.getElementById('switzerland-chart-title').textContent = 'M2 vs Purchasing Power (CHF) — ' + filterLabel(swissFilter);
+    renderOverlayChart('switzerland-chart', buildOverlayData(swissFullData.m2, cpiData.switzerland, swissFilter), 'M2 (CHF)', swissChart, v => swissChart = v);
+  }
+  function redrawUsa() {
+    if (!usaFullData || !cpiData) return;
+    document.getElementById('usa-chart-title').textContent = 'M2 vs Purchasing Power (USD) — ' + filterLabel(usaFilter);
+    renderOverlayChart('usa-chart', buildOverlayData(usaFullData.m2, cpiData.usa, usaFilter), 'M2 (USD)', usaChart, v => usaChart = v);
   }
 
   // ── Data loaders ───────────────────────────────────────────────────────────
+
+  async function loadCPI() {
+    try {
+      const r = await fetch(API_BASE + '/api/cpi');
+      const json = await r.json();
+      if (!json.success) throw new Error(json.error);
+      cpiData = json.data;
+      tryRenderAll();
+    } catch(e) {
+      console.error('CPI error:', e);
+    }
+  }
 
   async function loadECB() {
     try {
@@ -358,10 +438,9 @@
       if (!json.success) throw new Error(json.error);
       ecbFullData = json.data;
       renderCards('ecb-cards', ecbFullData, 'EUR', 1e6);
-      buildYearButtons(ecbFullData.m3, 'ecb-years', 'setEcbYear');
-      document.getElementById('ecb-chart-title').textContent = 'M3 — Money supply trend (EUR) — 12 months';
-      renderChart('ecb-chart', applyFilter(ecbFullData.m3, ecbFilter), 'M3 (EUR)', '#378ADD', ecbChart, v => ecbChart = v);
+      buildYearButtons(ecbFullData.m2, 'ecb-years', 'setEcbYear');
       document.getElementById('updated').textContent = 'Last updated: ' + new Date().toLocaleString();
+      tryRenderAll();
     } catch(e) {
       document.getElementById('ecb-cards').innerHTML = '<div class="loading">Could not load ECB data. Try refreshing.</div>';
       console.error('ECB error:', e);
@@ -375,9 +454,8 @@
       if (!json.success) throw new Error(json.error);
       riksFullData = json.data;
       renderCards('riksbank-cards', riksFullData, 'SEK', 1e6);
-      buildYearButtons(riksFullData.m3, 'riksbank-years', 'setRiksYear');
-      document.getElementById('riksbank-chart-title').textContent = 'M3 — Money supply trend (SEK) — 12 months';
-      renderChart('riksbank-chart', applyFilter(riksFullData.m3, riksFilter), 'M3 (SEK)', '#1D9E75', riksChart, v => riksChart = v);
+      buildYearButtons(riksFullData.m2, 'riksbank-years', 'setRiksYear');
+      tryRenderAll();
     } catch(e) {
       document.getElementById('riksbank-cards').innerHTML = '<div class="loading">Could not load Riksbank data. Try refreshing.</div>';
       console.error('Riksbank error:', e);
@@ -391,39 +469,12 @@
       if (!json.success) throw new Error(json.error);
       norwayFullData = json.data;
       renderCards('norway-cards', norwayFullData, 'NOK', 1e6);
-      buildYearButtons(norwayFullData.m3, 'norway-years', 'setNorwayYear');
-      document.getElementById('norway-chart-title').textContent = 'M3 — Money supply trend (NOK) — 12 months';
-      renderChart('norway-chart', applyFilter(norwayFullData.m3, norwayFilter), 'M3 (NOK)', '#E8543A', norwayChart, v => norwayChart = v);
+      buildYearButtons(norwayFullData.m2, 'norway-years', 'setNorwayYear');
+      tryRenderAll();
     } catch(e) {
       document.getElementById('norway-cards').innerHTML = '<div class="loading">Could not load Norway data. Try refreshing.</div>';
       console.error('Norway error:', e);
     }
-  }
-
-  let swissChart = null;
-  let swissFullData = null;
-  let swissFilter = { mode: 'range', value: 12 };
-
-  function setSwissFilter(mode, value, btn) {
-    swissFilter = { mode, value };
-    document.querySelectorAll('#switzerland-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#switzerland-years .yf').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    if (swissFullData) redrawSwiss();
-  }
-
-  function setSwissYear(year, btn) {
-    swissFilter = { mode: 'year', value: year };
-    document.querySelectorAll('#switzerland-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#switzerland-years .yf').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    if (swissFullData) redrawSwiss();
-  }
-
-  function redrawSwiss() {
-    const sliced = applyFilter(swissFullData.m3, swissFilter);
-    document.getElementById('switzerland-chart-title').textContent = 'M3 — Money supply trend (CHF) — ' + filterLabel(swissFilter);
-    renderChart('switzerland-chart', sliced, 'M3 (CHF)', '#8B5CF6', swissChart, v => swissChart = v);
   }
 
   async function loadSwitzerland() {
@@ -433,40 +484,12 @@
       if (!json.success) throw new Error(json.error);
       swissFullData = json.data;
       renderCards('switzerland-cards', swissFullData, 'CHF', 1e6);
-      buildYearButtons(swissFullData.m3, 'switzerland-years', 'setSwissYear');
-      document.getElementById('switzerland-chart-title').textContent = 'M3 — Money supply trend (CHF) — 12 months';
-      renderChart('switzerland-chart', applyFilter(swissFullData.m3, swissFilter), 'M3 (CHF)', '#8B5CF6', swissChart, v => swissChart = v);
+      buildYearButtons(swissFullData.m2, 'switzerland-years', 'setSwissYear');
+      tryRenderAll();
     } catch(e) {
       document.getElementById('switzerland-cards').innerHTML = '<div class="loading">Could not load SNB data. Try refreshing.</div>';
       console.error('Switzerland error:', e);
     }
-  }
-
-  let usaChart = null;
-  let usaFullData = null;
-  let usaFilter = { mode: 'range', value: 12 };
-
-  function setUsaFilter(mode, value, btn) {
-    usaFilter = { mode, value };
-    document.querySelectorAll('#usa-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#usa-years .yf').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    if (usaFullData) redrawUsa();
-  }
-
-  function setUsaYear(year, btn) {
-    usaFilter = { mode: 'year', value: year };
-    document.querySelectorAll('#usa-view .tf').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('#usa-years .yf').forEach(t => t.classList.remove('active'));
-    btn.classList.add('active');
-    if (usaFullData) redrawUsa();
-  }
-
-  function redrawUsa() {
-    const sliced = applyFilter(usaFullData.m2, usaFilter);
-    document.getElementById('usa-chart-title').textContent = 'M2 — Money supply trend (USD) — ' + filterLabel(usaFilter);
-    // FRED data is in billions USD; multiply by 1000 → millions so renderChart's /1e6 shows trillions
-    renderChart('usa-chart', sliced.map(d => ({ period: d.period, value: d.value * 1000 })), 'M2 (USD)', '#C0392B', usaChart, v => usaChart = v);
   }
 
   async function loadUSA() {
@@ -475,18 +498,16 @@
       const json = await r.json();
       if (!json.success) throw new Error(json.error);
       usaFullData = json.data;
-      // divisor=1000: billions → trillions for the cards. m3 is null (USA has no M3).
       renderCards('usa-cards', { m1: usaFullData.m1, m2: usaFullData.m2, m3: null }, 'USD', 1000);
       buildYearButtons(usaFullData.m2, 'usa-years', 'setUsaYear');
-      document.getElementById('usa-chart-title').textContent = 'M2 — Money supply trend (USD) — 12 months';
-      const sliced = applyFilter(usaFullData.m2, usaFilter);
-      renderChart('usa-chart', sliced.map(d => ({ period: d.period, value: d.value * 1000 })), 'M2 (USD)', '#C0392B', usaChart, v => usaChart = v);
+      tryRenderAll();
     } catch(e) {
       document.getElementById('usa-cards').innerHTML = '<div class="loading">Could not load Fed data. Try refreshing.</div>';
       console.error('USA error:', e);
     }
   }
 
+  loadCPI();
   loadECB();
   loadRiksbank();
   loadNorway();

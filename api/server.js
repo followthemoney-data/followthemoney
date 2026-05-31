@@ -514,5 +514,94 @@ app.get('/api/usa-seed', async (req, res) => {
   }
 });
 
+// ─── CPI endpoint (purchasing power data via FRED) ───────────────────────────
+// Fetches monthly CPI index for all 5 countries from FRED (same API key as USA).
+// Used by the frontend to calculate purchasing power over time.
+// Redis keys: cpi:snapshot, cpi:checked (24h TTL)
+// Series IDs (OECD Main Economic Indicators via FRED):
+//   USA:         CPIAUCSL         (CPI-U All Items, 1947-)
+//   Euro Area:   CP0000EZ19M086NEST (HICP All Items EA19, 1996-)
+//   Sweden:      SWECPIALLMINMEI  (CPI All Items, 1960-)
+//   Norway:      NORCPIALLMINMEI  (CPI All Items, 1960-)
+//   Switzerland: CHECPIALLMINMEI  (CPI All Items, 1960-)
+
+async function fetchCpiFromFred() {
+  const apiKey = process.env.FRED_API_KEY;
+  if (!apiKey) throw new Error('FRED_API_KEY not set');
+  const BASE = 'https://api.stlouisfed.org/fred/series/observations';
+
+  async function fetchSeries(seriesId) {
+    const url = `${BASE}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=1960-01-01`;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(`FRED HTTP ${r.status} for ${seriesId}`);
+    const data = await r.json();
+    if (data.error_code) throw new Error(`FRED series ${seriesId}: ${data.error_message}`);
+    return data.observations
+      .filter(o => o.value !== '.')
+      .map(o => ({ period: o.date.slice(0, 7), value: parseFloat(o.value) }))
+      .sort((a, b) => a.period.localeCompare(b.period));
+  }
+
+  const seriesMap = {
+    usa:         'CPIAUCSL',
+    ecb:         'CP0000EZ19M086NEST',
+    riksbank:    'SWECPIALLMINMEI',
+    norway:      'NORCPIALLMINMEI',
+    switzerland: 'CHECPIALLMINMEI',
+  };
+
+  const results = {};
+  await Promise.all(
+    Object.entries(seriesMap).map(async ([key, id]) => {
+      try {
+        results[key] = await fetchSeries(id);
+      } catch (e) {
+        console.error(`CPI fetch failed for ${key} (${id}):`, e.message);
+        results[key] = null;
+      }
+    })
+  );
+  return results;
+}
+
+app.get('/api/cpi', async (req, res) => {
+  try {
+    const raw = await redis.get('cpi:snapshot');
+    let snapshot = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
+
+    const cpiCached = await redis.get('cpi:checked');
+    const source = cpiCached && snapshot ? 'cache' : 'live';
+
+    if (!cpiCached || !snapshot) {
+      snapshot = await fetchCpiFromFred();
+      await redis.set('cpi:snapshot', JSON.stringify(snapshot));
+      await redis.set('cpi:checked', '1', { ex: 86400 });
+    }
+
+    res.json({ success: true, data: snapshot, source });
+  } catch (e) {
+    console.error('CPI error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/api/cpi-seed', async (req, res) => {
+  try {
+    const snapshot = await fetchCpiFromFred();
+    await redis.set('cpi:snapshot', JSON.stringify(snapshot));
+    await redis.set('cpi:checked', '1', { ex: 86400 });
+    const summary = Object.fromEntries(
+      Object.entries(snapshot).map(([k, v]) => [k, v
+        ? { periods: v.length, first: v[0]?.period, last: v[v.length-1]?.period }
+        : 'failed'
+      ])
+    );
+    res.json({ success: true, message: 'CPI seed complete.', summary });
+  } catch (e) {
+    console.error('CPI seed error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log('Server running on port ' + PORT));
