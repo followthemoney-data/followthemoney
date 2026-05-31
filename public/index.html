@@ -88,6 +88,13 @@
     .show-more-toggle:hover { color: #444; }
     .extra-charts { display: none; }
     .extra-charts.open { display: block; }
+    .card-status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 6px; vertical-align: middle; flex-shrink: 0; }
+    .card-status.green { background: #259B6B; }
+    .card-status.amber { background: #E78A28; }
+    .card-status.red   { background: #E8543A; }
+    .annotation-tooltip { position: fixed; display: none; background: #1a1a1a; color: white; padding: 10px 14px; border-radius: 8px; font-size: 13px; max-width: 260px; line-height: 1.5; z-index: 1000; pointer-events: none; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+    .annotation-tooltip strong { display: block; margin-bottom: 4px; }
+    .annotation-tooltip p { margin: 0; color: #bbb; font-size: 12px; }
     .money-cols { display: flex; gap: 8px; margin: 10px 0 4px; }
     .money-col { flex: 1; min-width: 0; }
     .money-col-label { font-size: 11px; font-weight: 700; color: #888; margin-bottom: 2px; }
@@ -413,7 +420,7 @@
     const card = document.createElement('div');
     card.className = 'card debt-card';
     card.innerHTML = `
-      <div class="card-label">National Debt</div>
+      <div class="card-label">National Debt ${debtDot(debtInfo.gdpRatio)}</div>
       <div class="card-desc">Total general government gross debt — all outstanding borrowing by central and local governments combined. Shown in USD equivalent and as a percentage of GDP. Source: IMF World Economic Outlook (annual).</div>
       <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
       <div class="card-value neg">${symbol}${formatDebtValue(debtInfo.value)}</div>
@@ -463,15 +470,54 @@
   const BASE_PERIOD = '2000-01';
 
   const CHART_EVENTS = [
-    { year: '2000', label: 'Dot-com crash',    color: '#9B59B6', yOff: 3  },
-    { year: '2008', label: 'Financial crisis', color: '#E8543A', yOff: 16 },
-    { year: '2020', label: 'COVID-19',         color: '#888888', yOff: 3  },
-    { year: '2022', label: 'Inflation surge',  color: '#E78A28', yOff: 16 },
+    { year: '2000', label: 'Dot-com crash',    color: '#9B59B6', yOff: 3,  tooltip: 'The dot-com bubble burst in 2000–01, wiping out trillions in stock market value. Central banks slashed interest rates to revive the economy — cheap money that helped inflate the housing bubble that came next.' },
+    { year: '2008', label: 'Financial crisis', color: '#E8543A', yOff: 16, tooltip: 'The 2008 global financial crisis caused the worst recession since the Great Depression. Governments bailed out banks and central banks cut rates to near zero, flooding the economy with cheap money for over a decade.' },
+    { year: '2020', label: 'COVID-19',         color: '#888888', yOff: 3,  tooltip: 'COVID-19 lockdowns halted the global economy almost overnight. Governments spent trillions on relief and central banks printed money at an unprecedented scale — which later contributed directly to the 2022 inflation surge.' },
+    { year: '2022', label: 'Inflation surge',  color: '#E78A28', yOff: 16, tooltip: 'After years of cheap money and pandemic spending, inflation hit levels not seen in 40 years. Central banks responded with the fastest interest rate hikes in decades, making mortgages and loans significantly more expensive.' },
   ];
 
   function makeAnnotationPlugin() {
     return {
       id: 'eventAnnotations',
+      afterInit(chart) {
+        if (chart.canvas._annListeners) return;
+        chart.canvas._annListeners = true;
+        let tip = document.getElementById('annotation-tooltip');
+        if (!tip) {
+          tip = document.createElement('div');
+          tip.id = 'annotation-tooltip';
+          tip.className = 'annotation-tooltip';
+          document.body.appendChild(tip);
+        }
+        chart.canvas.addEventListener('mousemove', e => {
+          const rect = chart.canvas.getBoundingClientRect();
+          const mx = e.clientX - rect.left;
+          const { chartArea, scales, data } = chart;
+          if (!scales.x || !chartArea) return;
+          const labels = data.labels;
+          let found = null;
+          CHART_EVENTS.forEach(ev => {
+            const idx = labels.findIndex(l => String(l).startsWith(ev.year));
+            if (idx < 0) return;
+            const x = scales.x.getPixelForValue(idx);
+            if (x >= chartArea.left && x <= chartArea.right && Math.abs(mx - x) < 14) found = { ev, x };
+          });
+          if (found) {
+            tip.innerHTML = `<strong>${found.ev.label}</strong><p>${found.ev.tooltip}</p>`;
+            tip.style.display = 'block';
+            tip.style.left = (e.clientX + 14) + 'px';
+            tip.style.top  = (e.clientY - 10) + 'px';
+            chart.canvas.style.cursor = 'pointer';
+          } else {
+            tip.style.display = 'none';
+            chart.canvas.style.cursor = '';
+          }
+        });
+        chart.canvas.addEventListener('mouseleave', () => {
+          document.getElementById('annotation-tooltip').style.display = 'none';
+          chart.canvas.style.cursor = '';
+        });
+      },
       afterDraw(chart) {
         const { ctx, chartArea, scales } = chart;
         if (!scales.x || !chartArea) return;
@@ -949,7 +995,7 @@
     const card = document.createElement('div');
     card.className = 'card pp-card';
     card.innerHTML = `
-      <div class="card-label">Purchasing Power</div>
+      <div class="card-label">Purchasing Power ${ppDot(latest.value)}</div>
       <div class="card-desc">CPI (Consumer Price Index) is an official government measurement that tracks monthly price changes across a basket of everyday goods — groceries, rent, energy, healthcare, and transport. It is published by statistical agencies such as Eurostat, the U.S. Bureau of Labor Statistics, and national statistics offices. This card inverts CPI to show purchasing power: when prices rise, this number falls. The lower it is, the less your money buys compared to ${baseCpi.period.slice(0,4)}.</div>
       <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
       <div class="card-value">${latest.value.toFixed(1)}</div>
@@ -970,7 +1016,7 @@
     const card = document.createElement('div');
     card.className = 'card inflation-card';
     card.innerHTML = `
-      <div class="card-label">Inflation</div>
+      <div class="card-label">Inflation ${inflationDot(inflation)}</div>
       <div class="card-desc">Inflation is the rate at which prices are rising right now — measured as the year-on-year percentage change in CPI. Unlike Purchasing Power (which shows the total accumulated erosion since 2000), inflation shows the current speed of price increase. Central banks typically target around 2% as a sign of a healthy, stable economy.</div>
       <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
       <div class="card-value">${inflation.toFixed(1)}%</div>
@@ -989,13 +1035,29 @@
     const card = document.createElement('div');
     card.className = 'card gdp-card';
     card.innerHTML = `
-      <div class="card-label">GDP Growth</div>
+      <div class="card-label">GDP Growth ${gdpDot(val)}</div>
       <div class="card-desc">GDP (Gross Domestic Product) is the total value of all goods and services produced in a country. GDP Growth is the year-on-year percentage change — when positive the economy is expanding, when negative for two or more consecutive quarters it is classified as a recession. Data comes from official national accounts published by government statistical agencies.</div>
       <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
       <div class="card-value ${val >= 0 ? 'pos' : 'neg'}">${val >= 0 ? '+' : ''}${val.toFixed(1)}%</div>
       <div class="card-unit">Quarterly · Year on Year · ${latest.period}</div>
     `;
     container.appendChild(card);
+  }
+
+  function statusDot(status) {
+    return `<span class="card-status ${status}"></span>`;
+  }
+  function inflationDot(rate) {
+    return statusDot(rate > 5 || rate < 0 ? 'red' : rate > 2.5 ? 'amber' : 'green');
+  }
+  function ppDot(pp) {
+    return statusDot(pp < 75 ? 'red' : pp < 88 ? 'amber' : 'green');
+  }
+  function gdpDot(growth) {
+    return statusDot(growth < -1 ? 'red' : growth < 0.5 ? 'amber' : 'green');
+  }
+  function debtDot(ratio) {
+    return statusDot(ratio > 90 ? 'red' : ratio > 60 ? 'amber' : 'green');
   }
 
   function renderCountrySummary(containerId, bank, moneySeries, cpiSeries) {
@@ -1043,6 +1105,21 @@
       const inf = ((l.value - ya.value) / ya.value * 100).toFixed(1);
       const rel = parseFloat(inf) > 2.5 ? 'above' : parseFloat(inf) < 1.5 ? 'below' : 'close to';
       parts.push(`Inflation is currently running at <strong>${inf}%</strong> per year — ${rel} the 2% target.`);
+    }
+
+    const bankRates = ratesData?.[bank];
+    if (bankRates && bankRates.length) {
+      const rate = bankRates[bankRates.length - 1].value;
+      const inf  = inflation !== null ? parseFloat(inflation) : null;
+      let rateSentence;
+      if (inf !== null && inf > 3 && rate > 1) {
+        rateSentence = `The central bank has raised its policy rate to <strong>${rate.toFixed(2)}%</strong> in response to high inflation.`;
+      } else if (rate < 0.25) {
+        rateSentence = `The central bank's policy rate is near zero at <strong>${rate.toFixed(2)}%</strong>, keeping borrowing cheap.`;
+      } else {
+        rateSentence = `The central bank's policy rate currently stands at <strong>${rate.toFixed(2)}%</strong>.`;
+      }
+      parts.push(rateSentence);
     }
 
     el.innerHTML = parts.join(' ');
@@ -1296,6 +1373,14 @@
     if (ratesData.usa)         renderRateCard('usa-pp',         ratesData.usa);
     // Re-render overlay charts to add rate line
     redrawEcb(); redrawRiks(); redrawNorway(); redrawSwiss(); redrawUsa();
+    // Refresh summaries to include rate sentence
+    if (cpiData) {
+      if (ecbFullData)    renderCountrySummary('ecb-summary',         'ecb',         ecbFullData.m2,    cpiData.ecb);
+      if (riksFullData)   renderCountrySummary('riksbank-summary',    'riksbank',    riksFullData.m2,   cpiData.riksbank);
+      if (norwayFullData) renderCountrySummary('norway-summary',      'norway',      norwayFullData.m2, cpiData.norway);
+      if (swissFullData)  renderCountrySummary('switzerland-summary', 'switzerland', swissFullData.m2,  cpiData.switzerland);
+      if (usaFullData)    renderCountrySummary('usa-summary',         'usa',         usaFullData.m2,    cpiData.usa);
+    }
   }
 
   function tryRenderAllGdp() {
