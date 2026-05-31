@@ -10,45 +10,45 @@
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; }
     header { background: #1a1a1a; color: white; padding: 7rem 2rem 6rem; text-align: center; }
     header h1 { font-size: clamp(3rem, 9vw, 7rem); font-weight: 700; letter-spacing: -3px; line-height: 1; }
-    .hero-sub { font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 2.5rem; }
-    .hero-amount { font-size: clamp(2.2rem, 7vw, 5rem); font-weight: 300; color: #fff; margin-top: 2.5rem; letter-spacing: -2px; font-variant-numeric: tabular-nums; line-height: 1.1; }
-    .hero-meta { font-size: 0.85rem; color: #555; margin-top: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; }
+    .hero-sub { font-size: 0.75rem; color: #555; text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 2.5rem; }
+    .hero-amount { font-size: clamp(2rem, 7vw, 5rem); font-weight: 300; color: #fff; margin-top: 2.5rem; letter-spacing: -2px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .hero-meta { font-size: 0.75rem; color: #555; margin-top: 0.75rem; text-transform: uppercase; letter-spacing: 0.12em; }
     .container { max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; }
     .tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; flex-wrap: wrap; }
-    .tab { padding: 8px 20px; border-radius: 8px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 14px; color: #666; }
+    .tab { padding: 8px 20px; border-radius: 8px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 16px; color: #666; }
     .tab.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
     .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 2rem; }
     .card { background: white; border-radius: 12px; padding: 1.25rem; border: 1px solid #eee; }
-    .card-label { font-size: 18px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
-    .card-desc { font-size: 12px; color: #888; margin-bottom: 10px; line-height: 1.5; }
+    .card-label { font-size: 20px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
+    .card-desc { font-size: 12px; color: #888; margin-bottom: 8px; line-height: 1.5; }
     .card-value { font-size: 28px; font-weight: 600; color: #1a1a1a; }
-    .card-unit { font-size: 13px; color: #999; margin-top: 4px; }
-    .card-growth { font-size: 13px; margin-top: 6px; }
+    .card-unit { font-size: 12px; color: #999; margin-top: 4px; }
+    .card-growth { font-size: 12px; margin-top: 8px; }
     .pos { color: #1D9E75; }
     .neg { color: #D85A30; }
     .chart-container { background: white; border-radius: 12px; padding: 1.5rem; border: 1px solid #eee; margin-bottom: 1.5rem; }
     .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px; }
-    .chart-title { font-size: 14px; color: #999; }
-    .time-filters { display: flex; gap: 6px; flex-wrap: wrap; }
-    .tf { padding: 6px 14px; border-radius: 6px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 12px; color: #666; white-space: nowrap; min-height: 24px; }
+    .chart-title { font-size: 12px; color: #999; }
+    .time-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+    .tf { padding: 4px 12px; border-radius: 4px; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 12px; color: #666; white-space: nowrap; min-height: 24px; }
     .tf.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
-    .year-filters { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 1rem; }
-    .yf { padding: 5px 10px; border-radius: 6px; border: 1px solid #e0e0e0; background: white; cursor: pointer; font-size: 11px; color: #888; min-height: 24px; }
+    .year-filters { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 1rem; }
+    .yf { padding: 4px 8px; border-radius: 4px; border: 1px solid #e0e0e0; background: white; cursor: pointer; font-size: 12px; color: #888; min-height: 24px; }
     .yf.active { background: #1a1a1a; color: white; border-color: #1a1a1a; }
     .yf:hover { border-color: #aaa; color: #444; }
-    .chart-wrap { position: relative; height: 250px; }
-    .chart-legend { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
-    .legend-item { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; font-weight: 500; color: #333; user-select: none; transition: opacity 0.15s; }
+    .chart-wrap { position: relative; height: 256px; }
+    .chart-legend { display: flex; gap: 16px; margin-bottom: 8px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; font-weight: 500; color: #333; user-select: none; transition: opacity 0.15s; }
     .legend-item.disabled { opacity: 0.4; }
-    .legend-box { width: 24px; height: 24px; border-radius: 5px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .legend-box::after { content: '✓'; color: white; font-size: 13px; font-weight: 800; line-height: 1; }
+    .legend-box { width: 24px; height: 24px; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .legend-box::after { content: '✓'; color: white; font-size: 12px; font-weight: 800; line-height: 1; }
     .legend-item.disabled .legend-box::after { content: ''; }
     .source { font-size: 12px; color: #bbb; text-align: right; margin-top: 0.5rem; }
     .updated { font-size: 12px; color: #bbb; margin-bottom: 1.5rem; }
-    .loading { text-align: center; padding: 3rem; color: #999; font-size: 14px; }
+    .loading { text-align: center; padding: 3rem; color: #999; font-size: 16px; }
     .explainer { background: white; border-radius: 12px; padding: 1.5rem; border: 1px solid #eee; margin-bottom: 1.5rem; }
     .explainer h2 { font-size: 16px; font-weight: 600; margin-bottom: 0.75rem; }
-    .explainer p { font-size: 14px; color: #666; line-height: 1.7; margin-bottom: 0.5rem; }
+    .explainer p { font-size: 16px; color: #666; line-height: 1.7; margin-bottom: 0.5rem; }
     footer { text-align: center; padding: 2rem; color: #bbb; font-size: 12px; }
   </style>
 </head>
