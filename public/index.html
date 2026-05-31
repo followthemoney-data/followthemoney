@@ -1110,9 +1110,14 @@
     const bankRates = ratesData?.[bank];
     if (bankRates && bankRates.length) {
       const rate = bankRates[bankRates.length - 1].value;
-      const inf  = inflation !== null ? parseFloat(inflation) : null;
+      let currentInf = null;
+      if (cpiSeries && cpiSeries.length >= 13) {
+        const l = cpiSeries[cpiSeries.length - 1];
+        const ya = cpiSeries[cpiSeries.length - 13];
+        currentInf = (l.value - ya.value) / ya.value * 100;
+      }
       let rateSentence;
-      if (inf !== null && inf > 3 && rate > 1) {
+      if (currentInf !== null && currentInf > 3 && rate > 1) {
         rateSentence = `The central bank has raised its policy rate to <strong>${rate.toFixed(2)}%</strong> in response to high inflation.`;
       } else if (rate < 0.25) {
         rateSentence = `The central bank's policy rate is near zero at <strong>${rate.toFixed(2)}%</strong>, keeping borrowing cheap.`;
