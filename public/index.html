@@ -327,25 +327,44 @@
   }
 
   // ── Overlay chart ──────────────────────────────────────────────────────────
-  // Both series are indexed to BASE_PERIOD = 100 so they share the same scale origin.
-  // Money supply rises from 100. Purchasing power = (baseCPI / currentCPI) * 100, falls from 100.
+  // Money supply uses the full series. CPI is null for periods before it starts —
+  // Chart.js renders those as a gap in the orange line rather than hiding the chart.
+  // Base period: 2000-01 if both series have it, else first overlap, else first money period.
 
   function buildOverlayData(moneySeries, cpiSeries, filter) {
-    if (!moneySeries || !cpiSeries) return null;
+    if (!moneySeries) return null;
     const cpiMap = {};
-    cpiSeries.forEach(d => cpiMap[d.period] = d.value);
-    const aligned = moneySeries.filter(d => cpiMap[d.period] !== undefined);
-    if (!aligned.length) return null;
-    const filtered = applyFilter(aligned, filter);
+    if (cpiSeries) cpiSeries.forEach(d => cpiMap[d.period] = d.value);
+
+    const filtered = applyFilter(moneySeries, filter);
     if (!filtered.length) return null;
-    // Use 2000-01 as base if available in both series, otherwise fall back to first aligned period
-    const preferredBase = aligned.find(d => d.period === BASE_PERIOD) ? BASE_PERIOD : aligned[0].period;
-    const moneyBaseVal = aligned.find(d => d.period === preferredBase).value;
-    const cpiBaseVal = cpiMap[preferredBase];
+
+    // Find base: prefer 2000-01 if both series have it, else first overlap, else first money period
+    const hasCpi = Object.keys(cpiMap).length > 0;
+    let basePeriod;
+    if (hasCpi && cpiMap[BASE_PERIOD] && moneySeries.find(d => d.period === BASE_PERIOD)) {
+      basePeriod = BASE_PERIOD;
+    } else if (hasCpi) {
+      const firstOverlap = moneySeries.find(d => cpiMap[d.period] !== undefined);
+      basePeriod = firstOverlap ? firstOverlap.period : moneySeries[0].period;
+    } else {
+      basePeriod = moneySeries[0].period;
+    }
+
+    const moneyBaseEntry = moneySeries.find(d => d.period === basePeriod);
+    if (!moneyBaseEntry) return null;
+    const moneyBaseVal = moneyBaseEntry.value;
+    const cpiBaseVal = cpiMap[basePeriod];
+
     return {
       periods: filtered.map(d => d.period),
       moneyIndexed: filtered.map(d => +((d.value / moneyBaseVal) * 100).toFixed(1)),
-      purchasingPower: filtered.map(d => +((cpiBaseVal / cpiMap[d.period]) * 100).toFixed(1)),
+      // null where CPI data doesn't exist → Chart.js draws a gap in the orange line
+      purchasingPower: filtered.map(d =>
+        cpiBaseVal && cpiMap[d.period] != null
+          ? +((cpiBaseVal / cpiMap[d.period]) * 100).toFixed(1)
+          : null
+      ),
     };
   }
 
@@ -418,11 +437,11 @@
 
   function tryRenderAll() {
     if (!cpiData) return;
-    if (ecbFullData)    redrawEcb();
-    if (riksFullData)   redrawRiks();
-    if (norwayFullData) redrawNorway();
-    if (swissFullData)  redrawSwiss();
-    if (usaFullData)    redrawUsa();
+    if (ecbFullData)    { buildYearButtons(ecbFullData.m2,    'ecb-years',          'setEcbYear');   redrawEcb();     }
+    if (riksFullData)   { buildYearButtons(riksFullData.m2,   'riksbank-years',      'setRiksYear');  redrawRiks();    }
+    if (norwayFullData) { buildYearButtons(norwayFullData.m2, 'norway-years',        'setNorwayYear');redrawNorway();  }
+    if (swissFullData)  { buildYearButtons(swissFullData.m2,  'switzerland-years',   'setSwissYear'); redrawSwiss();   }
+    if (usaFullData)    { buildYearButtons(usaFullData.m2,    'usa-years',           'setUsaYear');   redrawUsa();     }
   }
 
   function redrawEcb() {
