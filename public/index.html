@@ -303,15 +303,17 @@
     const cpiMap = {};
     cpiSeries.forEach(d => cpiMap[d.period] = d.value);
     const aligned = moneySeries.filter(d => cpiMap[d.period] !== undefined);
+    if (!aligned.length) return null;
     const filtered = applyFilter(aligned, filter);
     if (!filtered.length) return null;
-    const moneyBase = moneySeries.find(d => d.period === BASE_PERIOD);
-    const cpiBase = cpiSeries.find(d => d.period === BASE_PERIOD);
-    if (!moneyBase || !cpiBase) return null;
+    // Use 2000-01 as base if available in both series, otherwise fall back to first aligned period
+    const preferredBase = aligned.find(d => d.period === BASE_PERIOD) ? BASE_PERIOD : aligned[0].period;
+    const moneyBaseVal = aligned.find(d => d.period === preferredBase).value;
+    const cpiBaseVal = cpiMap[preferredBase];
     return {
       periods: filtered.map(d => d.period),
-      moneyIndexed: filtered.map(d => +((d.value / moneyBase.value) * 100).toFixed(1)),
-      purchasingPower: filtered.map(d => +((cpiBase.value / cpiMap[d.period]) * 100).toFixed(1)),
+      moneyIndexed: filtered.map(d => +((d.value / moneyBaseVal) * 100).toFixed(1)),
+      purchasingPower: filtered.map(d => +((cpiBaseVal / cpiMap[d.period]) * 100).toFixed(1)),
     };
   }
 

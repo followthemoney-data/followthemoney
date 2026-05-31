@@ -590,12 +590,14 @@ app.get('/api/cpi', async (req, res) => {
 
 app.get('/api/cpi-test', async (req, res) => {
   const seriesId = req.query.s || 'CPIAUCSL';
+  const from = req.query.from || '1990-01-01';
   const apiKey = process.env.FRED_API_KEY;
-  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=2020-01-01`;
+  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&observation_start=${from}`;
   try {
     const r = await fetch(url);
-    const text = await r.text();
-    res.json({ seriesId, status: r.status, body: JSON.parse(text) });
+    const data = await r.json();
+    const obs = data.observations || [];
+    res.json({ seriesId, from, status: r.status, count: obs.length, first: obs[0]?.date, last: obs[obs.length-1]?.date, error_code: data.error_code, error_message: data.error_message });
   } catch (e) {
     res.json({ seriesId, error: e.message });
   }
