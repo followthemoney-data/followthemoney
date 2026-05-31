@@ -878,9 +878,9 @@ async function fetchRatesFromFred() {
   const seriesMap = {
     usa:         'FEDFUNDS',
     ecb:         'ECBDFR',
-    riksbank:    'IRSTCB01SWEM156N',
-    norway:      'IRSTCB01NORM156N',
-    switzerland: 'IRSTCB01CHEM156N',
+    riksbank:    'IR3TIB01SEM156N',
+    norway:      'IR3TIB01NOM156N',
+    switzerland: 'IR3TIB01CHM156N',
   };
 
   const wait = ms => new Promise(r => setTimeout(r, ms));
