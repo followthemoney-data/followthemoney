@@ -88,6 +88,8 @@
     .show-more-toggle:hover { color: #444; }
     .extra-charts { display: none; }
     .extra-charts.open { display: block; }
+    .cards .mdetail-card { display: none; }
+    .cards.m-expanded .mdetail-card { display: block; }
   @media (max-width: 640px) {
     header { padding: 3rem 1.25rem 2.5rem; }
     header h1 { letter-spacing: -1px; }
@@ -744,11 +746,12 @@
   function renderCards(containerId, data, currency, divisor) {
     const container = document.getElementById(containerId);
     const { m1, m2, m3 } = data;
-    function cardHTML(label, key, series) {
-      if (!series || series.length === 0) return `<div class="card"><div class="card-label">${label}</div><div class="card-desc">${CARD_DESCS[key]}</div><div class="card-value">—</div></div>`;
+    function cardHTML(label, key, series, hidden) {
+      const cls = 'card' + (hidden ? ' mdetail-card' : '');
+      if (!series || series.length === 0) return `<div class="${cls}"><div class="card-label">${label}</div><div class="card-desc">${CARD_DESCS[key]}</div><div class="card-value">—</div></div>`;
       const latest = series[series.length - 1];
       const val = (latest.value / divisor).toFixed(1);
-      return `<div class="card">
+      return `<div class="${cls}">
         <div class="card-label">${label}</div>
         <div class="card-desc">${CARD_DESCS[key]}</div>
         <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
@@ -758,9 +761,20 @@
       </div>`;
     }
     container.innerHTML =
-      cardHTML('M1', 'm1', m1) +
-      cardHTML('M2', 'm2', m2) +
-      cardHTML('M3', 'm3', m3);
+      cardHTML('M1', 'm1', m1, true) +
+      cardHTML('M2', 'm2', m2, false) +
+      cardHTML('M3', 'm3', m3, true);
+
+    if (!container.nextElementSibling?.classList.contains('m-toggle')) {
+      const toggle = document.createElement('div');
+      toggle.className = 'show-more-toggle m-toggle';
+      toggle.textContent = '▾ Show M1 & M3 supply';
+      toggle.addEventListener('click', () => {
+        const open = container.classList.toggle('m-expanded');
+        toggle.textContent = open ? '▴ Hide M1 & M3 supply' : '▾ Show M1 & M3 supply';
+      });
+      container.parentNode.insertBefore(toggle, container.nextSibling);
+    }
   }
 
   // ── Overlay chart ──────────────────────────────────────────────────────────
