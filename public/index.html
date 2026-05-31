@@ -83,17 +83,18 @@
 
     .container { padding: 0 1rem; margin-top: 1.25rem; }
 
-    .tabs { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .tabs { flex-wrap: nowrap; overflow-x: scroll; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 4px; }
     .tabs::-webkit-scrollbar { display: none; }
-    .tab { white-space: nowrap; flex-shrink: 0; padding: 7px 14px; font-size: 14px; }
+    .tab { white-space: nowrap; flex-shrink: 0; padding: 7px 12px; font-size: 13px; }
+    .tab-detail { display: none; }
 
-    .cards { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+    .cards { grid-template-columns: 1fr 1fr; }
     .card { padding: 1rem; }
-    .card-label { font-size: 16px; }
+    .card-label { font-size: 15px; }
     .card-value { font-size: 22px; }
 
     .pp-row { flex-wrap: wrap; }
-    .pp-row .card { flex: 1 1 calc(50% - 6px); min-width: 140px; }
+    .pp-row .card { flex: 1 1 calc(50% - 6px); min-width: 130px; }
 
     .chart-container { padding: 1rem; }
     .chart-header { align-items: flex-start; }
@@ -129,11 +130,11 @@
 <div class="container">
 
 <div class="tabs">
-    <button class="tab active" onclick="switchBank('ecb', this)">🇪🇺 Euro Area (ECB)</button>
-    <button class="tab" onclick="switchBank('riksbank', this)">🇸🇪 Sweden (Riksbank)</button>
-    <button class="tab" onclick="switchBank('norway', this)">🇳🇴 Norway (SSB)</button>
-    <button class="tab" onclick="switchBank('switzerland', this)">🇨🇭 Switzerland (SNB)</button>
-    <button class="tab" onclick="switchBank('usa', this)">🇺🇸 USA (Fed)</button>
+    <button class="tab active" onclick="switchBank('ecb', this)">🇪🇺 <span class="tab-detail">Euro Area (</span>ECB<span class="tab-detail">)</span></button>
+    <button class="tab" onclick="switchBank('riksbank', this)">🇸🇪 <span class="tab-detail">Sweden (</span>Riksbank<span class="tab-detail">)</span></button>
+    <button class="tab" onclick="switchBank('norway', this)">🇳🇴 <span class="tab-detail">Norway (</span>SSB<span class="tab-detail">)</span></button>
+    <button class="tab" onclick="switchBank('switzerland', this)">🇨🇭 <span class="tab-detail">Switzerland (</span>SNB<span class="tab-detail">)</span></button>
+    <button class="tab" onclick="switchBank('usa', this)">🇺🇸 <span class="tab-detail">USA (</span>Fed<span class="tab-detail">)</span></button>
   </div>
 
   <div id="updated" class="updated">Loading latest data...</div>
@@ -738,6 +739,7 @@
     const canvas = document.getElementById(canvasId);
     const chartWrap = canvas.closest('.chart-wrap');
     const showDots = overlayData.periods.length <= 36;
+    const isMobile = window.innerWidth < 640;
 
     const inst = new Chart(canvas.getContext('2d'), {
       type: 'line',
@@ -758,9 +760,9 @@
         },
         scales: {
           x: { ticks: { font: { size: 11 }, maxRotation: 45, maxTicksLimit: 12 } },
-          yMoney:     { type: 'linear', position: 'left',  ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: true, text: 'Money Supply (2000 = 100)',    font: { size: 10 }, color: '#357AC6' } },
-          yPower:     { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: true, text: 'Purchasing Power (2000 = 100)', font: { size: 10 }, color: '#E8543A' } },
-          yInflation: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, callback: v => v.toFixed(1) + '%' }, title: { display: true, text: 'Inflation YoY (%)', font: { size: 10 }, color: '#E78A28' } }
+          yMoney:     { type: 'linear', position: 'left',  ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: !isMobile, text: 'Money Supply (2000 = 100)',    font: { size: 10 }, color: '#357AC6' } },
+          yPower:     { type: 'linear', position: 'right', display: !isMobile, grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, callback: v => v.toFixed(0) }, title: { display: !isMobile, text: 'Purchasing Power (2000 = 100)', font: { size: 10 }, color: '#E8543A' } },
+          yInflation: { type: 'linear', position: 'right', display: !isMobile, grid: { drawOnChartArea: false }, ticks: { font: { size: 11 }, callback: v => v.toFixed(1) + '%' }, title: { display: !isMobile, text: 'Inflation YoY (%)', font: { size: 10 }, color: '#E78A28' } }
         }
       }
     });
@@ -1018,7 +1020,7 @@
     if (!series || !series.length) return [];
     if (filter.mode === 'all') return series;
     if (filter.mode === 'year') return series.filter(d => d.period === filter.value);
-    if (filter.mode === 'range') return series.slice(-Math.round(filter.value / 12));
+    if (filter.mode === 'range') return series.slice(-Math.max(10, Math.round(filter.value / 12)));
     if (filter.mode === 'brush') {
       const s = filter.start.slice(0, 4), e = filter.end.slice(0, 4);
       return series.filter(d => d.period >= s && d.period <= e);
