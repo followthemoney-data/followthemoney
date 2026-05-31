@@ -670,6 +670,19 @@ async function fetchDebtFromIMF() {
   return result;
 }
 
+app.get('/api/debt-debug', async (req, res) => {
+  try {
+    const BASE = 'https://www.imf.org/external/datamapper/api/v1';
+    const r1 = await fetch(`${BASE}/GGXWDG_NGDP/USA/XM/SWE/NOR/CHE`);
+    const r2 = await fetch(`${BASE}/NGDP/USA/XM/SWE/NOR/CHE`);
+    const d1 = await r1.json();
+    const d2 = await r2.json();
+    res.json({ status1: r1.status, status2: r2.status, keys1: Object.keys(d1), keys2: Object.keys(d2), sample1: JSON.stringify(d1).slice(0, 500), sample2: JSON.stringify(d2).slice(0, 500) });
+  } catch(e) {
+    res.json({ error: e.message });
+  }
+});
+
 app.get('/api/debt', async (req, res) => {
   try {
     const raw = await redis.get('debt:snapshot');
