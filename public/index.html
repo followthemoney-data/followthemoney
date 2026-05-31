@@ -88,8 +88,13 @@
     .show-more-toggle:hover { color: #444; }
     .extra-charts { display: none; }
     .extra-charts.open { display: block; }
-    .cards .mdetail-card { display: none; }
-    .cards.m-expanded .mdetail-card { display: block; }
+    .money-rows { margin: 8px 0 6px; display: flex; flex-direction: column; gap: 6px; }
+    .money-row { display: flex; align-items: baseline; gap: 8px; }
+    .money-row-label { font-size: 11px; font-weight: 700; color: #aaa; min-width: 24px; }
+    .money-row-value { font-weight: 600; color: #1a1a1a; font-size: 16px; }
+    .money-row.main .money-row-label { color: #666; }
+    .money-row.main .money-row-value { font-size: 26px; }
+    .money-row-growth { font-size: 11px; }
   @media (max-width: 640px) {
     header { padding: 3rem 1.25rem 2.5rem; }
     header h1 { letter-spacing: -1px; }
@@ -746,35 +751,36 @@
   function renderCards(containerId, data, currency, divisor) {
     const container = document.getElementById(containerId);
     const { m1, m2, m3 } = data;
-    function cardHTML(label, key, series, hidden) {
-      const cls = 'card' + (hidden ? ' mdetail-card' : '');
-      if (!series || series.length === 0) return `<div class="${cls}"><div class="card-label">${label}</div><div class="card-desc">${CARD_DESCS[key]}</div><div class="card-value">—</div></div>`;
+
+    function rowHTML(label, series, main) {
+      if (!series || !series.length) return '';
       const latest = series[series.length - 1];
       const val = (latest.value / divisor).toFixed(1);
-      return `<div class="${cls}">
-        <div class="card-label">${label}</div>
-        <div class="card-desc">${CARD_DESCS[key]}</div>
-        <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
-        <div class="card-value">${val}T</div>
-        <div class="card-unit">${currency} · ${latest.period}</div>
-        ${growthHTML(series)}
+      let growth = '';
+      if (series.length >= 2) {
+        const prev = series[series.length - 2];
+        const mom = (latest.value - prev.value) / prev.value * 100;
+        growth = `<span class="money-row-growth ${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '▲' : '▼'} ${Math.abs(mom).toFixed(2)}%</span>`;
+      }
+      return `<div class="money-row${main ? ' main' : ''}">
+        <span class="money-row-label">${label}</span>
+        <span class="money-row-value">${val}T</span>
+        ${growth}
       </div>`;
     }
-    container.innerHTML =
-      cardHTML('M1', 'm1', m1, true) +
-      cardHTML('M2', 'm2', m2, false) +
-      cardHTML('M3', 'm3', m3, true);
 
-    if (!container.nextElementSibling?.classList.contains('m-toggle')) {
-      const toggle = document.createElement('div');
-      toggle.className = 'show-more-toggle m-toggle';
-      toggle.textContent = '▾ Show M1 & M3 supply';
-      toggle.addEventListener('click', () => {
-        const open = container.classList.toggle('m-expanded');
-        toggle.textContent = open ? '▴ Hide M1 & M3 supply' : '▾ Show M1 & M3 supply';
-      });
-      container.parentNode.insertBefore(toggle, container.nextSibling);
-    }
+    const latestPeriod = (m2 || m1 || [])[((m2 || m1 || []).length || 1) - 1]?.period || '';
+    container.innerHTML = `<div class="card">
+      <div class="card-label">Money Supply</div>
+      <div class="card-desc">The three main measures of money in circulation. M2 is the most-watched — when it grows faster than the economy, inflation tends to follow. M1 is physical cash and checking accounts. M3 adds large institutional deposits.</div>
+      <button class="card-expand" onclick="toggleDesc(this)">▾ More</button>
+      <div class="money-rows">
+        ${rowHTML('M2', m2, true)}
+        ${rowHTML('M1', m1, false)}
+        ${rowHTML('M3', m3, false)}
+      </div>
+      <div class="card-unit">${currency} · ${latestPeriod}</div>
+    </div>`;
   }
 
   // ── Overlay chart ──────────────────────────────────────────────────────────
